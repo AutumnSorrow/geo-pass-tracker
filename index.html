@@ -1,0 +1,756 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>地理课前通关 · 教师打勾销账端</title>
+<style>
+  :root {
+    --bg: #0B1324; --card: #13203B; --card2: #1A2B4E; --border: #2A416E;
+    --text: #F8FAFC; --muted: #94A3B8; --gold: #FACC15;
+    --green: #10B981; --green-bg: rgba(16,185,129,0.16);
+    --red: #F43F5E; --red-bg: rgba(244,63,94,0.20);
+    --amber: #F59E0B; --amber-bg: rgba(245,158,11,0.20);
+    --blue: #3B82F6;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  body {
+    font-family: -apple-system, "Microsoft YaHei", "PingFang SC", sans-serif;
+    background: var(--bg); color: var(--text); min-height: 100vh; padding-bottom: 78px; overflow-x: hidden;
+  }
+  .app-wrap { width: 100%; max-width: 960px; margin: 0 auto; padding: 10px 12px; overflow-x: hidden; }
+  /* Top Header */
+  .header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 10px 14px; background: var(--card); border: 1px solid var(--border);
+    border-radius: 14px; margin-bottom: 12px; gap: 8px; flex-wrap: wrap;
+  }
+  .cls-tabs { display: flex; background: #080E1C; padding: 3px; border-radius: 10px; border: 1px solid var(--border); }
+  .cls-tab {
+    padding: 7px 18px; font-size: 16px; font-weight: 800; color: var(--muted);
+    background: transparent; border: none; border-radius: 8px; cursor: pointer;
+  }
+  .cls-tab.active { background: var(--blue); color: #FFF; }
+  .sync-pill {
+    font-size: 13px; font-weight: 700; padding: 6px 12px; border-radius: 20px;
+    background: var(--card2); border: 1px solid var(--border); cursor: pointer; display: flex; align-items: center; gap: 6px;
+  }
+  /* Episode Bar */
+  .ep-bar {
+    background: var(--card); border: 1px solid var(--border); border-radius: 14px;
+    padding: 12px 14px; margin-bottom: 12px; display: flex; flex-direction: column; gap: 10px;
+  }
+  .ep-row { display: flex; gap: 8px; align-items: center; }
+  .ep-sel {
+    flex: 1 1 0; width: 0; background: #080E1C; color: var(--gold); border: 1px solid var(--border);
+    border-radius: 10px; padding: 10px 10px; font-size: 14.5px; font-weight: 700; min-width: 0;
+  }
+  .btn {
+    padding: 10px 14px; font-size: 14.5px; font-weight: 800; border-radius: 10px;
+    border: 1px solid var(--border); background: var(--card2); color: #FFF; cursor: pointer; white-space: nowrap;
+  }
+  .btn:active { transform: scale(0.97); }
+  .btn-green { background: var(--green); color: #042F1E; border: none; }
+  .btn-gold { background: var(--gold); color: #422006; border: none; }
+  .stat-strip {
+    display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;
+    font-size: 13.5px; color: var(--muted); padding-top: 4px; border-top: 1px dashed var(--border);
+  }
+  /* Student Grid (反向打勾大按钮) */
+  .sec-title { font-size: 14px; font-weight: 800; color: var(--gold); margin: 10px 2px 8px; display: flex; justify-content: space-between; }
+  .stu-grid {
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px;
+  }
+  @media (min-width: 640px) {
+    .stu-grid { grid-template-columns: repeat(5, 1fr); gap: 10px; }
+  }
+  .stu-card {
+    padding: 18px 6px 10px; border-radius: 12px; border: 2px solid var(--border);
+    background: var(--card); text-align: center; cursor: pointer; position: relative;
+    transition: transform 0.08s; user-select: none; min-width: 0;
+  }
+  .stu-card:active { transform: scale(0.95); }
+  .stu-card.st-pass { background: var(--green-bg); border-color: var(--green); }
+  .stu-card.st-fail { background: var(--red-bg); border-color: var(--red); }
+  .stu-card.st-repass { background: var(--amber-bg); border-color: var(--amber); }
+  .stu-name { font-size: 15.5px; font-weight: 800; color: #FFF; margin-bottom: 4px; word-break: break-all; }
+  .stu-badge { font-size: 12px; font-weight: 800; padding: 2px 7px; border-radius: 6px; display: inline-block; }
+  .st-pass .stu-badge { color: #6EE7B7; }
+  .st-fail .stu-badge { color: #FDA4AF; background: rgba(159,18,57,0.55); }
+  .st-repass .stu-badge { color: #FDE68A; }
+  .focus-star { position: absolute; top: 4px; right: 6px; font-size: 12px; color: var(--gold); }
+  /* Debt List & Cheat Sheet */
+  .debt-card {
+    background: var(--card); border: 1.5px solid var(--border); border-radius: 14px;
+    padding: 14px; margin-bottom: 12px;
+  }
+  .debt-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+  .debt-item {
+    background: #091224; border: 1px solid var(--border); border-radius: 10px;
+    padding: 10px 12px; margin-top: 8px;
+  }
+  .debt-item-row { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .cheat-box {
+    margin-top: 10px; padding: 10px; background: #111E36; border-radius: 9px;
+    border-left: 3px solid var(--green); display: none;
+  }
+  .cheat-box img { width: 100%; max-height: 260px; object-fit: contain; border-radius: 8px; margin-bottom: 8px; background: #061020; }
+  /* Table */
+  .tbl-wrap { overflow-x: auto; background: var(--card); border-radius: 14px; border: 1px solid var(--border); }
+  table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+  th, td { padding: 9px 10px; border-bottom: 1px solid var(--border); text-align: center; white-space: nowrap; }
+  th { background: #091224; color: var(--gold); font-weight: 800; }
+  /* Bottom Fixed TabBar */
+  .tabbar {
+    position: fixed; bottom: 0; left: 0; right: 0; height: 64px;
+    background: rgba(11,19,36,0.97); border-top: 1.5px solid var(--border);
+    display: flex; justify-content: space-around; align-items: center; z-index: 50;
+  }
+  .tab-item {
+    flex: 1; height: 100%; border: none; background: transparent; color: var(--muted);
+    font-size: 13.5px; font-weight: 800; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; gap: 3px; cursor: pointer; position: relative;
+  }
+  .tab-item.active { color: var(--gold); }
+  .badge-dot {
+    position: absolute; top: 6px; right: calc(50% - 26px); background: var(--red);
+    color: #FFF; font-size: 11px; font-weight: 900; padding: 1px 6px; border-radius: 10px;
+  }
+  /* Modal */
+  .modal { position: fixed; inset: 0; background: rgba(0,0,0,0.8); display: none; align-items: center; justify-content: center; z-index: 99; padding: 14px; }
+  .modal-inner { width: 100%; max-width: 560px; max-height: 88vh; overflow-y: auto; background: var(--card); border: 2px solid var(--border); border-radius: 16px; padding: 18px; }
+  .inp { width: 100%; background: #080E1C; color: #FFF; border: 1px solid var(--border); border-radius: 8px; padding: 9px 11px; font-size: 14px; margin-top: 5px; font-family: inherit; }
+</style>
+</head>
+<body>
+<div class="app-wrap">
+  <header class="header">
+    <div class="cls-tabs">
+      <button class="cls-tab active" id="t-c10" onclick="setCls('10班')">高三 10班</button>
+      <button class="cls-tab" id="t-c11" onclick="setCls('11班')">高三 11班</button>
+    </div>
+    <div style="display:flex;gap:8px;align-items:center;">
+      <div class="sync-pill" onclick="openCloudModal()" id="sync-status">☁️ 配置云同步</div>
+      <button class="btn" style="padding:6px 11px;font-size:13px;" onclick="openRosterModal()">👥 改名单</button>
+    </div>
+  </header>
+
+  <div id="view-root"></div>
+</div>
+
+<nav class="tabbar">
+  <button class="tab-item active" id="nav-check" onclick="setTab('check')">
+    <span style="font-size:19px;">✍️</span><span>当堂打勾</span>
+  </button>
+  <button class="tab-item" id="nav-debt" onclick="setTab('debt')">
+    <span style="font-size:19px;">🔥</span><span>欠账销账榜</span>
+    <span class="badge-dot" id="debt-dot" style="display:none;">0</span>
+  </button>
+  <button class="tab-item" id="nav-stat" onclick="setTab('stat')">
+    <span style="font-size:19px;">📊</span><span>考核台账/导出</span>
+  </button>
+</nav>
+
+<!-- 学生名单批量导入与点选托底弹窗 -->
+<div class="modal" id="roster-modal">
+  <div class="modal-inner">
+    <h3 style="color:var(--gold);margin-bottom:8px;">👥 批量导入名单 & 点选托底生（<span id="rm-cls"></span>）</h3>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;">
+      <label class="btn btn-gold" style="padding:7px 12px;font-size:13px;display:inline-flex;align-items:center;">
+        📂 导入Excel/CSV花名册(.xlsx/.csv)
+        <input type="file" accept=".xlsx,.csv,.txt" style="display:none" onchange="importExcelRoster(event)">
+      </label>
+      <button class="btn" style="padding:7px 12px;font-size:13px;" onclick="smartCleanPaste()">🧹 智能清洗粘贴文本(去学号/分数)</button>
+    </div>
+    <p style="font-size:12px;color:var(--muted);margin-bottom:6px;">方式① 点上方按钮直接选Excel名册自动识别（含班级列可一次导入10、11两班）；方式② 从Excel/微信复制一列直接粘贴到下方：</p>
+    <textarea class="inp" id="roster-txt" rows="6" oninput="renderRosterChips()" placeholder="直接从Excel复制姓名列粘贴到这里（支持空格、换行、顿号分隔）..."></textarea>
+    <div style="font-size:12.5px;color:var(--gold);font-weight:700;margin:10px 0 6px;">👇 轻触下方姓名即可标记/取消「★托底重点关注」（无需手打星号）：</div>
+    <div id="roster-chips" style="display:flex;flex-wrap:wrap;gap:6px;max-height:150px;overflow-y:auto;padding:4px;background:#080E1C;border-radius:8px;border:1px solid var(--border);"></div>
+    <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:12px;">
+      <button class="btn" onclick="document.getElementById('roster-modal').style.display='none'">取消</button>
+      <button class="btn btn-green" onclick="saveRoster()">💾 保存名单并同步云端</button>
+    </div>
+  </div>
+</div>
+
+<!-- 云同步配置弹窗（方案A） -->
+<div class="modal" id="cloud-modal">
+  <div class="modal-inner">
+    <h3 style="color:var(--gold);margin-bottom:8px;">☁️ 手机 ↔ 办公电脑 实时云同步配置</h3>
+    <div style="margin-bottom:10px;">
+      <label style="font-size:13.5px;font-weight:700;">选择云存储通道：</label>
+      <select class="inp" id="cloud-mode" onchange="toggleCloudFields()">
+        <option value="gist">通道1：私有云端 Gist 实时同步（免建表·填Token即用）</option>
+        <option value="supabase">通道2：Supabase 国内直连云数据库（4G/5G极速）</option>
+        <option value="lan">通道3：办公室局域网电脑主控直连</option>
+      </select>
+    </div>
+    <div id="cfg-gist">
+      <label style="font-size:13px;color:var(--muted);">访问密钥 Token（仅保存在您本机浏览器）：</label>
+      <input class="inp" type="password" id="gist-token" placeholder="粘贴 ghp_... 或 gho_... 密钥">
+      <label style="font-size:13px;color:var(--muted);display:block;margin-top:8px;">云端账本 Gist ID（首次留空点连接将自动创建专属私有账本！）：</label>
+      <input class="inp" id="gist-id" placeholder="首次留空自动生成，复制填到手机即可双端互通">
+    </div>
+    <div id="cfg-sb" style="display:none;">
+      <label style="font-size:13px;color:var(--muted);">Supabase Project URL：</label>
+      <input class="inp" id="sb-url" placeholder="https://xxxx.supabase.co">
+      <label style="font-size:13px;color:var(--muted);display:block;margin-top:8px;">Supabase Anon Key：</label>
+      <input class="inp" type="password" id="sb-key" placeholder="eyJhbGci...">
+      <label style="font-size:13px;color:var(--muted);display:block;margin-top:8px;">您的私人同步口令（手机与电脑填相同口令）：</label>
+      <input class="inp" id="sb-room" value="qingyun_geo_10_11">
+    </div>
+    <div style="display:flex;justify-content:space-between;margin-top:14px;flex-wrap:wrap;gap:8px;">
+      <button class="btn" onclick="pullFromCloud(true)">🔄 立即从云端拉取</button>
+      <div style="display:flex;gap:8px;">
+        <button class="btn" onclick="document.getElementById('cloud-modal').style.display='none'">关闭</button>
+        <button class="btn btn-green" onclick="saveCloudCfg()">⚡ 保存并连接同步</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="./geo_bank_data.js"></script>
+<script>
+const BANK = (window.GEO_DEFAULT_BANK && window.GEO_DEFAULT_BANK.items) || [];
+const DIAG_BASE = "./diagrams/";
+
+function initDefaultData() {
+  // 按期中真实成绩升序预置槽位（10班前6名为<50分托底生，11班前8名为<50分托底生）
+  const s10 = [19,22,24,25,27,30, 31,31,32,35,35,37,39,40,40,43,50,53,53,71];
+  const s11 = [21,27,28,28,29,30,30,30, 32,32,33,34,34,36,37,38,43,50,51,52];
+  return {
+    updatedAt: Date.now(),
+    rosters: {
+      "10班": s10.map((sc, i) => `10-${String(i+1).padStart(2,'0')}(${sc}分)${i<6?'*':''}`),
+      "11班": s11.map((sc, i) => `11-${String(i+1).padStart(2,'0')}(${sc}分)${i<8?'*':''}`)
+    },
+    // records["10班"]["1"] = { "姓名": "pass" | "fail" | "repass" }
+    records: { "10班": {}, "11班": {} }
+  };
+}
+
+let db = JSON.parse(localStorage.getItem("geo_teacher_db_v1") || "null") || initDefaultData();
+let ui = { cls: "10班", tab: "check", epId: 1, openCheats: {} };
+let cloudCfg = JSON.parse(localStorage.getItem("geo_cloud_cfg_v1") || '{"mode":"gist","token":"","gistId":"","sbUrl":"","sbKey":"","sbRoom":"qingyun_geo_10_11"}');
+
+function cleanName(raw) { return raw.replace(/\*$/, "").trim(); }
+function isFocus(raw) { return raw.trim().endsWith("*"); }
+
+function countDebts(cls) {
+  let cnt = 0;
+  const recs = db.records[cls] || {};
+  Object.values(recs).forEach(epMap => {
+    Object.values(epMap).forEach(st => { if (st === "fail") cnt++; });
+  });
+  return cnt;
+}
+
+let syncTimer = null;
+function saveLocalAndSync() {
+  db.updatedAt = Date.now();
+  localStorage.setItem("geo_teacher_db_v1", JSON.stringify(db));
+  render();
+  clearTimeout(syncTimer);
+  syncTimer = setTimeout(() => pushToCloud(), 450);
+}
+
+function setCls(c) { ui.cls = c; render(); }
+function setTab(t) { ui.tab = t; render(); }
+function setEp(v) { ui.epId = parseInt(v, 10) || 1; render(); }
+
+function initEpAllPass() {
+  const cls = ui.cls, eid = String(ui.epId);
+  db.records[cls] = db.records[cls] || {};
+  db.records[cls][eid] = db.records[cls][eid] || {};
+  (db.rosters[cls] || []).forEach(r => {
+    const nm = cleanName(r);
+    if (!db.records[cls][eid][nm]) db.records[cls][eid][nm] = "pass";
+  });
+  saveLocalAndSync();
+}
+
+function cycleStu(nm) {
+  const cls = ui.cls, eid = String(ui.epId);
+  db.records[cls] = db.records[cls] || {};
+  // 若本节尚未初始化，第一次点某人自动将其他人默认设为一次过(pass)，被点者直接标为待补背(fail)！
+  if (!db.records[cls][eid]) {
+    db.records[cls][eid] = {};
+    (db.rosters[cls] || []).forEach(r => { db.records[cls][eid][cleanName(r)] = "pass"; });
+    db.records[cls][eid][nm] = "fail";
+    saveLocalAndSync();
+    return;
+  }
+  const cur = db.records[cls][eid][nm] || "pass";
+  const next = cur === "pass" ? "fail" : (cur === "fail" ? "repass" : "pass");
+  db.records[cls][eid][nm] = next;
+  saveLocalAndSync();
+}
+
+function markRepass(eid, nm) {
+  if (db.records[ui.cls] && db.records[ui.cls][eid]) {
+    db.records[ui.cls][eid][nm] = "repass";
+    saveLocalAndSync();
+  }
+}
+
+function toggleCheat(key) {
+  ui.openCheats[key] = !ui.openCheats[key];
+  render();
+}
+
+function render() {
+  document.getElementById("t-c10").classList.toggle("active", ui.cls === "10班");
+  document.getElementById("t-c11").classList.toggle("active", ui.cls === "11班");
+  ["check","debt","stat"].forEach(k => document.getElementById("nav-"+k).classList.toggle("active", ui.tab === k));
+
+  const dCnt = countDebts(ui.cls);
+  const dot = document.getElementById("debt-dot");
+  dot.style.display = dCnt > 0 ? "inline-block" : "none";
+  dot.textContent = dCnt;
+
+  const roster = db.rosters[ui.cls] || [];
+  const root = document.getElementById("view-root");
+
+  if (ui.tab === "check") {
+    const eid = String(ui.epId);
+    const epMap = (db.records[ui.cls] && db.records[ui.cls][eid]) || null;
+    const epObj = BANK.find(x => x.id === ui.epId) || BANK[0] || {id:1, module:"", target_weakness:""};
+    let nPass=0, nFail=0, nRe=0;
+    if (epMap) Object.values(epMap).forEach(v => { if(v==="pass")nPass++; else if(v==="fail")nFail++; else if(v==="repass")nRe++; });
+
+    const focusList = roster.filter(isFocus);
+    const otherList = roster.filter(r => !isFocus(r));
+    const cardHTML = (raw) => {
+      const nm = cleanName(raw), foc = isFocus(raw);
+      const st = epMap ? (epMap[nm] || "pass") : "none";
+      const clsStr = st==="pass" ? "st-pass" : (st==="fail" ? "st-fail" : (st==="repass" ? "st-repass" : ""));
+      const lbl = st==="pass" ? "✓ 一次过" : (st==="fail" ? "🔴 待补背" : (st==="repass" ? "🟡 补背过" : "点错生即记"));
+      return `<div class="stu-card ${clsStr}" onclick="cycleStu('${nm.replace(/'/g,"\\'")}')">
+        ${foc ? '<span class="focus-star">★托底</span>' : ''}
+        <div class="stu-name">${nm}</div>
+        <span class="stu-badge">${lbl}</span>
+      </div>`;
+    };
+
+    root.innerHTML = `
+      <div class="ep-bar">
+        <div class="ep-row">
+          <button class="btn" onclick="setEp(Math.max(1, ui.epId-1))">◀</button>
+          <select class="ep-sel" onchange="setEp(this.value)">
+            ${BANK.map(it => `<option value="${it.id}" ${it.id===ui.epId?'selected':''}>第${String(it.id).padStart(2,'0')}期｜${it.target_weakness}</option>`).join('')}
+          </select>
+          <button class="btn" onclick="setEp(Math.min(BANK.length, ui.epId+1))">▶</button>
+        </div>
+        <div class="stat-strip">
+          <span>${epMap ? `🟢一次过 <b>${nPass}</b> ｜ 🔴待补背 <b style="color:#FB7185">${nFail}</b> ｜ 🟡已补 <b>${nRe}</b>` : '💡 反向极速打勾：直接点没过关的学生，其余人自动记为✓一次过！'}</span>
+          ${!epMap ? `<button class="btn btn-green" style="padding:5px 11px;font-size:13px;" onclick="initEpAllPass()">⚡ 全员一次过✓</button>` : ''}
+        </div>
+      </div>
+      <div class="sec-title"><span>★ 核心托底关注组（优先巡视抽查）</span><span>轻触切换：过 → 欠 → 补过</span></div>
+      <div class="stu-grid">${focusList.map(cardHTML).join('')}</div>
+      <div class="sec-title" style="margin-top:14px;color:#93C5FD;"><span>其余同学</span></div>
+      <div class="stu-grid">${otherList.map(cardHTML).join('')}</div>
+    `;
+  } else if (ui.tab === "debt") {
+    // 汇总每个学生的欠账期数
+    const recs = db.records[ui.cls] || {};
+    const stuDebts = [];
+    roster.forEach(raw => {
+      const nm = cleanName(raw), foc = isFocus(raw);
+      const owed = [];
+      Object.keys(recs).sort((a,b)=>Number(a)-Number(b)).forEach(eid => {
+        if (recs[eid][nm] === "fail") owed.push(Number(eid));
+      });
+      if (owed.length > 0) stuDebts.push({ nm, foc, owed });
+    });
+    stuDebts.sort((a,b) => b.owed.length - a.owed.length);
+
+    if (stuDebts.length === 0) {
+      root.innerHTML = `<div class="debt-card" style="text-align:center;padding:36px 16px;">
+        <div style="font-size:40px;margin-bottom:8px;">🎉</div>
+        <h3 style="color:#6EE7B7;margin-bottom:6px;">${ui.cls} 当前全部销账完毕！</h3>
+        <p style="color:var(--muted);font-size:14px;">在「当堂打勾」页点选未过关学生后，会自动汇总到这里供课后听背书销账。</p>
+      </div>`;
+    } else {
+      root.innerHTML = stuDebts.map(sd => `
+        <div class="debt-card">
+          <div class="debt-head">
+            <div style="font-size:17px;font-weight:800;">${sd.nm} ${sd.foc ? '<span style="color:var(--gold);font-size:13px;">★托底重点</span>' : ''}</div>
+            <span style="background:var(--red-bg);color:#FDA4AF;border:1px solid var(--red);padding:2px 10px;border-radius:12px;font-size:13px;font-weight:800;">欠 ${sd.owed.length} 期未背</span>
+          </div>
+          ${sd.owed.map(eid => {
+            const it = BANK.find(x => x.id === eid) || {};
+            const ckey = `${sd.nm}_${eid}`;
+            const isOpen = !!ui.openCheats[ckey];
+            return `<div class="debt-item">
+              <div class="debt-item-row">
+                <div style="font-weight:700;font-size:14.5px;color:#E2E8F0;">第${String(eid).padStart(2,'0')}期 · ${it.target_weakness || ''}</div>
+                <div style="display:flex;gap:8px;">
+                  <button class="btn" style="padding:5px 10px;font-size:12.5px;" onclick="toggleCheat('${ckey.replace(/'/g,"\\'")}')">${isOpen ? '🔼 收起标答' : '📖 展开标答小抄'}</button>
+                  <button class="btn btn-green" style="padding:5px 12px;font-size:12.5px;" onclick="markRepass('${eid}','${sd.nm.replace(/'/g,"\\'")}')">✅ 已背过·销账</button>
+                </div>
+              </div>
+              <div class="cheat-box" style="display:${isOpen ? 'block' : 'none'};">
+                ${it.diagram_id ? `<img src="${DIAG_BASE}${it.diagram_id}_ans.png" alt="标准答案图">` : ''}
+                <div style="font-size:13px;color:var(--gold);font-weight:700;margin-bottom:4px;">【提问】${it.quiz_prompt || ''}</div>
+                <div style="font-size:13.5px;color:#A7F3D0;line-height:1.5;white-space:pre-line;">【标答要点】\n${it.standard_answer || ''}</div>
+              </div>
+            </div>`;
+          }).join('')}
+        </div>
+      `).join('');
+    }
+  } else {
+    const recs = db.records[ui.cls] || {};
+    const epKeys = Object.keys(recs).sort((a,b)=>Number(a)-Number(b));
+    const rowsHTML = roster.map(raw => {
+      const nm = cleanName(raw), foc = isFocus(raw);
+      let p=0, rp=0, fl=0;
+      epKeys.forEach(eid => {
+        const v = recs[eid][nm];
+        if (v==="pass") p++; else if (v==="repass") rp++; else if (v==="fail") fl++;
+      });
+      const tot = p + rp + fl;
+      const rate = tot > 0 ? Math.round((p+rp)/tot*100) + "%" : "-";
+      return `<tr>
+        <td style="font-weight:800;color:${foc?'var(--gold)':'#FFF'}">${nm}${foc?' ★':''}</td>
+        <td style="color:#6EE7B7">${p}</td>
+        <td style="color:#FDE68A">${rp}</td>
+        <td style="color:${fl>0?'#FB7185':'#94A3B8'};font-weight:800;">${fl}</td>
+        <td style="font-weight:800;">${rate}</td>
+      </tr>`;
+    }).join('');
+
+    root.innerHTML = `
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px;">
+        <div style="font-size:14px;color:var(--muted);">已记录期数：<b>${epKeys.length}</b> 期</div>
+        <button class="btn btn-gold" onclick="exportSchoolExcel()">📥 导出学校考核 Excel 表(.xls)</button>
+      </div>
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr><th>学生姓名</th><th>一次过(✓)</th><th>补背过(补✓)</th><th>未销账(×)</th><th>总达标率</th></tr></thead>
+          <tbody>${rowsHTML}</tbody>
+        </table>
+      </div>
+    `;
+  }
+}
+function openRosterModal() {
+  document.getElementById("rm-cls").textContent = ui.cls;
+  document.getElementById("roster-txt").value = (db.rosters[ui.cls] || []).join("\n");
+  renderRosterChips();
+  document.getElementById("roster-modal").style.display = "flex";
+}
+function renderRosterChips() {
+  const lines = document.getElementById("roster-txt").value.split(/[\r\n,，、;；]+/).map(s=>s.trim()).filter(Boolean);
+  const box = document.getElementById("roster-chips");
+  box.innerHTML = lines.map((raw, idx) => {
+    const foc = raw.endsWith("*");
+    const nm = raw.replace(/\*$/,"");
+    return `<span onclick="toggleRosterStar(${idx})" style="padding:4px 10px;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;border:1px solid ${foc?'var(--gold)':'var(--border)'};background:${foc?'rgba(250,204,21,0.2)':'#13203B'};color:${foc?'#FEF08A':'#CBD5E1'};">${nm}${foc?' ★':''}</span>`;
+  }).join('');
+}
+function toggleRosterStar(idx) {
+  const lines = document.getElementById("roster-txt").value.split(/[\r\n,，、;；]+/).map(s=>s.trim()).filter(Boolean);
+  if (!lines[idx]) return;
+  lines[idx] = lines[idx].endsWith("*") ? lines[idx].replace(/\*$/,"") : (lines[idx] + "*");
+  document.getElementById("roster-txt").value = lines.join("\n");
+  renderRosterChips();
+}
+function smartCleanPaste() {
+  const raw = document.getElementById("roster-txt").value;
+  // 自动提取2~4字中文姓名（保留末尾*号），剔除学号、分数、制表符等杂项
+  const tokens = raw.split(/[\r\n\t,，、;；\s]+/).map(t => t.trim()).filter(Boolean);
+  const names = [];
+  tokens.forEach(t => {
+    const hasStar = t.endsWith("*");
+    const m = t.match(/[\u4e00-\u9fa5·]{2,5}/);
+    if (m && !["姓名","学生姓名","班级","学号","总分","成绩","赋分","排名"].includes(m[0])) {
+      names.push(m[0] + (hasStar ? "*" : ""));
+    }
+  });
+  if (names.length) {
+    document.getElementById("roster-txt").value = names.join("\n");
+    renderRosterChips();
+  }
+}
+
+// 原生零依赖读取 .xlsx / .csv 花名册文件
+async function parseXlsxRows(buf) {
+  const bytes = new Uint8Array(buf), view = new DataView(buf);
+  const files = {};
+  let i = 0;
+  while (i < bytes.length - 30) {
+    if (view.getUint32(i, true) === 0x04034b50) {
+      const method = view.getUint16(i + 8, true);
+      const cSize = view.getUint32(i + 18, true);
+      const nLen = view.getUint16(i + 26, true), eLen = view.getUint16(i + 28, true);
+      const name = new TextDecoder().decode(bytes.subarray(i + 30, i + 30 + nLen));
+      const start = i + 30 + nLen + eLen;
+      const comp = bytes.subarray(start, start + cSize);
+      if (name.startsWith("xl/sharedStrings") || name.startsWith("xl/worksheets/sheet")) {
+        if (method === 0) files[name] = new TextDecoder().decode(comp);
+        else if (method === 8 && window.DecompressionStream) {
+          const ds = new DecompressionStream("deflate-raw");
+          const wr = ds.writable.getWriter(); wr.write(comp); wr.close();
+          files[name] = await new Response(ds.readable).text();
+        }
+      }
+      i = start + cSize;
+    } else i++;
+  }
+  const docParser = new DOMParser();
+  const sst = [];
+  if (files["xl/sharedStrings.xml"]) {
+    const xml = docParser.parseFromString(files["xl/sharedStrings.xml"], "application/xml");
+    xml.querySelectorAll("si").forEach(si => {
+      sst.push(Array.from(si.querySelectorAll("t")).map(t => t.textContent).join(""));
+    });
+  }
+  const allRows = [];
+  Object.keys(files).filter(k => k.startsWith("xl/worksheets/sheet")).sort().forEach(k => {
+    const xml = docParser.parseFromString(files[k], "application/xml");
+    xml.querySelectorAll("row").forEach(rEl => {
+      const row = [];
+      rEl.querySelectorAll("c").forEach(cEl => {
+        const ref = cEl.getAttribute("r") || "A1";
+        let colIdx = 0;
+        for (const ch of ref.replace(/\d+/g,"")) colIdx = colIdx * 26 + (ch.charCodeAt(0) - 64);
+        const t = cEl.getAttribute("t");
+        const vEl = cEl.querySelector("v"), isEl = cEl.querySelector("is t");
+        let val = isEl ? isEl.textContent : (vEl ? vEl.textContent : "");
+        if (t === "s" && val !== "") val = sst[ parseInt(val, 10) ] || "";
+        row[colIdx - 1] = String(val).trim();
+      });
+      if (row.some(Boolean)) allRows.push(row);
+    });
+  });
+  return allRows;
+}
+
+async function importExcelRoster(ev) {
+  const f = ev.target.files[0]; if (!f) return;
+  try {
+    let rows = [];
+    if (f.name.toLowerCase().endsWith(".xlsx")) {
+      rows = await parseXlsxRows(await f.arrayBuffer());
+    } else {
+      const txt = await f.text();
+      rows = txt.split(/\r?\n/).map(l => l.split(/[,\t;]/).map(s=>s.trim()));
+    }
+    if (!rows.length) throw new Error("未读到表格内容");
+    // 查找表头：姓名列、班级列、成绩列
+    let nameCol = -1, clsCol = -1, scCol = -1, startR = 0;
+    for (let r = 0; r < Math.min(8, rows.length); r++) {
+      rows[r].forEach((cell, ci) => {
+        if (!cell) return;
+        if (/姓名|学生/.test(cell) && nameCol < 0) { nameCol = ci; startR = r + 1; }
+        if (/班级|班别/.test(cell) && clsCol < 0) clsCol = ci;
+        if (/赋分|总分|成绩|得分/.test(cell) && scCol < 0) scCol = ci;
+      });
+      if (nameCol >= 0) break;
+    }
+    if (nameCol < 0) {
+      // 自动探测中文姓名列
+      const counts = {};
+      rows.slice(0, 25).forEach(r => r.forEach((c, ci) => { if (/^[\u4e00-\u9fa5]{2,4}$/.test(c||"")) counts[ci] = (counts[ci]||0)+1; }));
+      const best = Object.entries(counts).sort((a,b)=>b[1]-a[1])[0];
+      if (best) nameCol = parseInt(best[0], 10); else nameCol = 0;
+    }
+    const byCls = { "10班": [], "11班": [], "cur": [] };
+    for (let r = startR; r < rows.length; r++) {
+      const nm = (rows[r][nameCol] || "").trim();
+      if (!/^[\u4e00-\u9fa5·]{2,5}$/.test(nm) || ["姓名","学生姓名","合计","平均分"].includes(nm)) continue;
+      const sc = scCol >= 0 ? parseFloat(rows[r][scCol]) : NaN;
+      const cRaw = clsCol >= 0 ? String(rows[r][clsCol] || "") : "";
+      if (/10|810/.test(cRaw)) byCls["10班"].push({ nm, sc });
+      else if (/11|811/.test(cRaw)) byCls["11班"].push({ nm, sc });
+      else byCls["cur"].push({ nm, sc });
+    }
+    const fmtGroup = (arr, focN) => {
+      if (arr.some(x => !isNaN(x.sc))) arr.sort((a,b) => (a.sc||999) - (b.sc||999));
+      return arr.map((x, idx) => x.nm + (!isNaN(x.sc) && idx < focN ? "*" : ""));
+    };
+    if (byCls["10班"].length && byCls["11班"].length) {
+      db.rosters["10班"] = fmtGroup(byCls["10班"], 6);
+      db.rosters["11班"] = fmtGroup(byCls["11班"], 8);
+      saveLocalAndSync();
+      document.getElementById("roster-txt").value = db.rosters[ui.cls].join("\n");
+      renderRosterChips();
+      alert(`🎉 一键导入成功！\n已自动识别并导入 10班（${db.rosters["10班"].length}人）和 11班（${db.rosters["11班"].length}人）名单！`);
+    } else {
+      const list = byCls[ui.cls].length ? byCls[ui.cls] : byCls["cur"];
+      if (!list.length) throw new Error("未在表格中找到有效学生姓名");
+      const formatted = fmtGroup(list, ui.cls==="10班"?6:8);
+      document.getElementById("roster-txt").value = formatted.join("\n");
+      renderRosterChips();
+      alert(`已提取 ${formatted.length} 名学生姓名！可点选确认★托底生后点击【保存名单】。`);
+    }
+  } catch (err) { alert("导入提示：" + err.message); }
+  ev.target.value = "";
+}
+
+function saveRoster() {
+  const lines = document.getElementById("roster-txt").value.split(/[\r\n,，、;；]+/).map(s=>s.trim()).filter(Boolean);
+  if (lines.length > 0) {
+    db.rosters[ui.cls] = lines;
+    document.getElementById("roster-modal").style.display = "none";
+    saveLocalAndSync();
+  }
+}
+
+function setSyncPill(txt, col) {
+  const el = document.getElementById("sync-status");
+  el.textContent = txt; el.style.borderColor = col || "var(--border)";
+}
+function openCloudModal() {
+  document.getElementById("cloud-mode").value = cloudCfg.mode || "gist";
+  document.getElementById("gist-token").value = cloudCfg.token || "";
+  document.getElementById("gist-id").value = cloudCfg.gistId || "";
+  document.getElementById("sb-url").value = cloudCfg.sbUrl || "";
+  document.getElementById("sb-key").value = cloudCfg.sbKey || "";
+  document.getElementById("sb-room").value = cloudCfg.sbRoom || "qingyun_geo_10_11";
+  toggleCloudFields();
+  document.getElementById("cloud-modal").style.display = "flex";
+}
+function toggleCloudFields() {
+  const m = document.getElementById("cloud-mode").value;
+  document.getElementById("cfg-gist").style.display = m === "gist" ? "block" : "none";
+  document.getElementById("cfg-sb").style.display = m === "supabase" ? "block" : "none";
+}
+async function saveCloudCfg() {
+  cloudCfg = {
+    mode: document.getElementById("cloud-mode").value,
+    token: document.getElementById("gist-token").value.trim(),
+    gistId: document.getElementById("gist-id").value.trim(),
+    sbUrl: document.getElementById("sb-url").value.trim().replace(/\/$/,""),
+    sbKey: document.getElementById("sb-key").value.trim(),
+    sbRoom: document.getElementById("sb-room").value.trim() || "qingyun_geo_10_11"
+  };
+  localStorage.setItem("geo_cloud_cfg_v1", JSON.stringify(cloudCfg));
+  document.getElementById("cloud-modal").style.display = "none";
+  await pushToCloud(true);
+}
+
+async function pushToCloud(manual) {
+  try {
+    if (location.protocol.startsWith("http") && cloudCfg.mode === "lan") {
+      const r = await fetch("/api/state", { method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(db) });
+      if (r.ok) setSyncPill("🟢 已同步电脑", "var(--green)");
+      return;
+    }
+    if (cloudCfg.mode === "gist" && cloudCfg.token) {
+      setSyncPill("⏳ 正在同步...", "var(--gold)");
+      const headers = { "Authorization": `Bearer ${cloudCfg.token}`, "Accept": "application/vnd.github+json", "Content-Type": "application/json" };
+      if (!cloudCfg.gistId) {
+        const res = await fetch("https://api.github.com/gists", {
+          method: "POST", headers,
+          body: JSON.stringify({ description: "高三地理课前通关辅差考核云账本", public: false, files: { "geo_records.json": { content: JSON.stringify(db) } } })
+        });
+        if (!res.ok) throw new Error("Gist创建失败");
+        const data = await res.json();
+        cloudCfg.gistId = data.id;
+        localStorage.setItem("geo_cloud_cfg_v1", JSON.stringify(cloudCfg));
+        if (manual) alert("已为您自动创建专属私有云账本！\n请记下此账本ID填到手机端即可双端实时互通：\n" + data.id);
+      } else {
+        const res = await fetch(`https://api.github.com/gists/${cloudCfg.gistId}`, {
+          method: "PATCH", headers,
+          body: JSON.stringify({ files: { "geo_records.json": { content: JSON.stringify(db) } } })
+        });
+        if (!res.ok) throw new Error("Gist更新失败");
+      }
+      setSyncPill("🟢 云端已同步", "var(--green)");
+    } else if (cloudCfg.mode === "supabase" && cloudCfg.sbUrl && cloudCfg.sbKey) {
+      setSyncPill("⏳ 正在同步...", "var(--gold)");
+      const res = await fetch(`${cloudCfg.sbUrl}/rest/v1/geo_sync`, {
+        method: "POST",
+        headers: { "apikey": cloudCfg.sbKey, "Authorization": `Bearer ${cloudCfg.sbKey}`, "Content-Type": "application/json", "Prefer": "resolution=merge-duplicates" },
+        body: JSON.stringify({ room_id: cloudCfg.sbRoom, payload: db, updated_at: new Date().toISOString() })
+      });
+      if (!res.ok) throw new Error("Supabase同步失败");
+      setSyncPill("🟢 云端已同步", "var(--green)");
+    }
+  } catch (e) {
+    setSyncPill("🔴 仅存本机", "var(--red)");
+    if (manual) alert("云同步连接提示：" + e.message);
+  }
+}
+
+async function pullFromCloud(manual) {
+  try {
+    let remote = null;
+    if (location.protocol.startsWith("http") && cloudCfg.mode === "lan") {
+      const r = await fetch("/api/state");
+      if (r.ok) remote = await r.json();
+    } else if (cloudCfg.mode === "gist" && cloudCfg.token && cloudCfg.gistId) {
+      const r = await fetch(`https://api.github.com/gists/${cloudCfg.gistId}`, { headers: { "Authorization": `Bearer ${cloudCfg.token}`, "Accept": "application/vnd.github+json" } });
+      if (r.ok) { const d = await r.json(); remote = JSON.parse(d.files["geo_records.json"].content); }
+    } else if (cloudCfg.mode === "supabase" && cloudCfg.sbUrl && cloudCfg.sbKey) {
+      const r = await fetch(`${cloudCfg.sbUrl}/rest/v1/geo_sync?room_id=eq.${encodeURIComponent(cloudCfg.sbRoom)}&select=payload`, {
+        headers: { "apikey": cloudCfg.sbKey, "Authorization": `Bearer ${cloudCfg.sbKey}` }
+      });
+      if (r.ok) { const arr = await r.json(); if (arr[0]) remote = arr[0].payload; }
+    }
+    if (remote && remote.rosters && (manual || (remote.updatedAt || 0) >= (db.updatedAt || 0))) {
+      db = remote; localStorage.setItem("geo_teacher_db_v1", JSON.stringify(db));
+      render(); setSyncPill("🟢 云端已同步", "var(--green)");
+    }
+  } catch (e) { if (manual) alert("拉取失败：" + e.message); }
+}
+
+function exportSchoolExcel() {
+  const cls = ui.cls, roster = db.rosters[cls] || [], recs = db.records[cls] || {};
+  const maxEp = BANK.length || 28;
+  let html = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel"><head><meta charset="UTF-8"></head><body>
+  <table border="1" style="border-collapse:collapse;font-family:Microsoft YaHei;font-size:11pt;text-align:center;">
+  <tr><th colspan="${6+maxEp}" style="background:#1E3A8A;color:#FFF;font-size:13pt;height:34px;">青云实验中学高三地理（${cls}）课前通关与背诵销账过程性考核台账</th></tr>
+  <tr style="background:#DBEAFE;font-weight:bold;height:28px;"><th>序号</th><th>学生姓名</th><th>辅差层级</th><th>一次过关数</th><th>补背销账数</th><th>未销账数</th><th>总达标率</th>`;
+  for (let i=1; i<=maxEp; i++) html += `<th>第${String(i).padStart(2,'0')}期</th>`;
+  html += `</tr>`;
+  roster.forEach((raw, idx) => {
+    const nm = cleanName(raw), foc = isFocus(raw);
+    let p=0, rp=0, fl=0, cells="";
+    for (let i=1; i<=maxEp; i++) {
+      const st = recs[String(i)] && recs[String(i)][nm];
+      if (st==="pass") { p++; cells += `<td style="color:#059669;font-weight:bold;">✓</td>`; }
+      else if (st==="repass") { rp++; cells += `<td style="background:#FEF9C3;color:#B45309;font-weight:bold;">补✓</td>`; }
+      else if (st==="fail") { fl++; cells += `<td style="background:#FEE2E2;color:#DC2626;font-weight:bold;">×</td>`; }
+      else { cells += `<td></td>`; }
+    }
+    const tot = p + rp + fl, rate = tot > 0 ? Math.round((p+rp)/tot*100)+"%" : "-";
+    const bg = foc ? "background:#FFF1F2;" : "";
+    html += `<tr style="height:24px;${bg}"><td>${idx+1}</td><td style="font-weight:bold;">${nm}</td><td>${foc?'★核心托底组':'常规组'}</td><td>${p}</td><td>${rp}</td><td style="color:#DC2626;font-weight:bold;">${fl}</td><td style="font-weight:bold;">${rate}</td>${cells}</tr>`;
+  });
+  html += `</table></body></html>`;
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob(["\uFEFF"+html], {type:"application/vnd.ms-excel;charset=utf-8"}));
+  a.download = `高三地理课前通关过程考核台账_${cls}_${new Date().toISOString().slice(0,10)}.xls`;
+  a.click();
+}
+
+// 支持 #gist=xxx&tk=xxx 手机扫码一键免输配对云端（配对后立即从地址栏擦除密钥保护安全！）
+if (location.hash && location.hash.includes("tk=")) {
+  const hp = new URLSearchParams(location.hash.slice(1));
+  if (hp.get("tk")) {
+    cloudCfg.mode = "gist";
+    cloudCfg.token = hp.get("tk");
+    if (hp.get("gist")) cloudCfg.gistId = hp.get("gist");
+    localStorage.setItem("geo_cloud_cfg_v1", JSON.stringify(cloudCfg));
+    history.replaceState(null, "", location.pathname + location.search);
+  }
+}
+window.addEventListener("visibilitychange", () => { if (!document.hidden) pullFromCloud(false); });
+if (location.protocol.startsWith("http") && !cloudCfg.token && !cloudCfg.sbUrl) { cloudCfg.mode = "lan"; }
+const dp = new URLSearchParams(location.search).get("demo");
+if (dp === "check" || dp === "debt") {
+  db.records["10班"]["1"] = {};
+  db.rosters["10班"].forEach((r, i) => { db.records["10班"]["1"][cleanName(r)] = (i===0||i===2) ? "fail" : (i===1 ? "repass" : "pass"); });
+  if (dp === "debt") { ui.tab = "debt"; ui.openCheats[`${cleanName(db.rosters["10班"][0])}_1`] = true; }
+}
+render();
+if (!dp) pullFromCloud(false);
+</script>
+</body>
+</html>
