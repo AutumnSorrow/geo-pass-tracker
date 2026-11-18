@@ -1,0 +1,129 @@
+{
+    "current_blackboard_class":  "10",
+    "clock_offset_minutes":  0,
+    "trigger_before_minutes":  5,
+    "idle_required_seconds":  90,
+    "anchor_monday":  "2026-11-16",
+    "anchor_week_parity":  "odd",
+    "note":  "weekday: 1=周一...7=周日；week: all=每周, odd=单周(斜杠左), even=双周(斜杠右)；time为正式开始时间(自动提前5分钟空闲弹窗)",
+    "schedules":  {
+                      "10":  {
+                                 "1":  [
+                                           {
+                                               "time":  "11:05",
+                                               "week":  "all",
+                                               "label":  "周一第4节"
+                                           }
+                                       ],
+                                 "2":  [
+                                           {
+                                               "time":  "08:55",
+                                               "week":  "all",
+                                               "label":  "周二第2节"
+                                           }
+                                       ],
+                                 "3":  [
+                                           {
+                                               "time":  "16:15",
+                                               "week":  "all",
+                                               "label":  "周三第8节"
+                                           },
+                                           {
+                                               "time":  "19:35",
+                                               "week":  "all",
+                                               "label":  "周三晚自习二段"
+                                           }
+                                       ],
+                                 "4":  [
+                                           {
+                                               "time":  "12:30",
+                                               "week":  "odd",
+                                               "label":  "周四中自习(单周)"
+                                           },
+                                           {
+                                               "time":  "13:25",
+                                               "week":  "all",
+                                               "label":  "周四第5节"
+                                           }
+                                       ],
+                                 "5":  [
+                                           {
+                                               "time":  "07:00",
+                                               "week":  "even",
+                                               "label":  "周五早自习(双周)"
+                                           },
+                                           {
+                                               "time":  "14:20",
+                                               "week":  "all",
+                                               "label":  "周五第6节"
+                                           }
+                                       ],
+                                 "7":  [
+                                           {
+                                               "time":  "17:50",
+                                               "week":  "all",
+                                               "label":  "周日晚自习一段"
+                                           }
+                                       ]
+                             },
+                      "11":  {
+                                 "1":  [
+                                           {
+                                               "time":  "15:20",
+                                               "week":  "all",
+                                               "label":  "周一第7节"
+                                           }
+                                       ],
+                                 "2":  [
+                                           {
+                                               "time":  "11:05",
+                                               "week":  "all",
+                                               "label":  "周二第4节"
+                                           }
+                                       ],
+                                 "3":  [
+                                           {
+                                               "time":  "08:55",
+                                               "week":  "all",
+                                               "label":  "周三第2节"
+                                           },
+                                           {
+                                               "time":  "17:50",
+                                               "week":  "all",
+                                               "label":  "周三晚自习一段"
+                                           }
+                                       ],
+                                 "4":  [
+                                           {
+                                               "time":  "12:30",
+                                               "week":  "even",
+                                               "label":  "周四中自习(双周)"
+                                           },
+                                           {
+                                               "time":  "16:15",
+                                               "week":  "all",
+                                               "label":  "周四第8节"
+                                           }
+                                       ],
+                                 "5":  [
+                                           {
+                                               "time":  "07:00",
+                                               "week":  "odd",
+                                               "label":  "周五早自习(单周)"
+                                           },
+                                           {
+                                               "time":  "08:00",
+                                               "week":  "all",
+                                               "label":  "周五第1节"
+                                           }
+                                       ],
+                                 "7":  [
+                                           {
+                                               "time":  "19:35",
+                                               "week":  "all",
+                                               "label":  "周日晚自习二段"
+                                           }
+                                       ]
+                             }
+                  }
+}

@@ -1,0 +1,910 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>高三地理课前通关系统 v6.0（单屏巨幅聚焦·多变体动态靶点·智能流转版）</title>
+<style>
+  :root {
+    --bg: #0B1324; --panel: #121F38; --panel-alt: #192A4A; --border: #2A416E;
+    --text: #FFFFFF; --muted: #CBD5E1; --gold: #FACC15; --emerald: #10B981;
+    --rose: #F43F5E; --blue: #3B82F6; --sky: #38BDF8; --fscale: 1;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; }
+  body {
+    font-family: "Microsoft YaHei", "PingFang SC", sans-serif;
+    background: radial-gradient(circle at top right, #16284C 0%, var(--bg) 72%);
+    color: var(--text); height: 100vh; width: 100vw; overflow: hidden;
+    display: flex; flex-direction: column;
+  }
+  /* 紧凑单行顶栏：适配1280x720~4K任意一体机缩放比，绝不换行 */
+  .topbar {
+    height: clamp(46px, 6.2vh, 60px); padding: 0 16px;
+    background: rgba(11, 18, 34, 0.96); border-bottom: 1.5px solid var(--border);
+    display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-shrink: 0;
+  }
+  .brand { display: flex; align-items: center; gap: 8px; min-width: 0; }
+  .class-switch { display: flex; background: #080E1C; border-radius: 9px; padding: 3px; border: 1px solid var(--border); flex-shrink: 0; }
+  .class-btn {
+    padding: 4px 12px; font-size: clamp(13px, 1.7vh, 16.5px); font-weight: 800; color: var(--muted);
+    background: transparent; border: none; border-radius: 6px; cursor: pointer; white-space: nowrap;
+  }
+  .class-btn.active { background: var(--blue); color: #FFF; }
+  .ep-nav { display: flex; align-items: center; gap: 6px; min-width: 0; }
+  .nav-btn {
+    background: var(--panel-alt); color: var(--text); border: 1px solid var(--border);
+    border-radius: 8px; padding: 5px 10px; font-size: clamp(12px, 1.6vh, 15.5px);
+    font-weight: 700; cursor: pointer; white-space: nowrap; flex-shrink: 0;
+  }
+  .nav-btn:active { transform: scale(0.97); }
+  .auto-pill { border-color: #334155; color: #94A3B8; }
+  .auto-pill.on { background: rgba(16,185,129,0.2); border-color: #34D399; color: #6EE7B7; }
+  .ep-select {
+    background: var(--panel); color: var(--gold); border: 1px solid var(--border);
+    border-radius: 8px; padding: 5px 9px; font-size: clamp(12.5px, 1.65vh, 16px);
+    font-weight: 700; width: clamp(210px, 26vw, 410px); text-overflow: ellipsis;
+  }
+  .top-right { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+  .clock-badge {
+    font-size: clamp(12px, 1.6vh, 15.5px); font-weight: 700; color: #CBD5E1;
+    background: var(--panel); padding: 5px 10px; border-radius: 8px; border: 1px solid var(--border); white-space: nowrap;
+  }
+  /* 主舞台区 */
+  .main-stage { flex: 1; min-height: 0; padding: 10px 16px; display: flex; flex-direction: column; gap: 10px; overflow: hidden; position: relative; }
+  .stage-banner {
+    display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    padding: 6px 16px; border-radius: 10px; font-weight: 800; flex-shrink: 0;
+  }
+  .banner-prep { background: linear-gradient(90deg, #1E3A8A, #1D4ED8); border: 1.5px solid #60A5FA; }
+  .banner-quiz-old { background: linear-gradient(90deg, #0C4A6E, #0284C7); border: 1.5px solid #7DD3FC; }
+  .banner-quiz-new { background: linear-gradient(90deg, #7C2D12, #B45309); border: 1.5px solid var(--gold); }
+  .banner-ans  { background: linear-gradient(90deg, #064E3B, #047857); border: 1.5px solid #34D399; }
+  .banner-title { font-size: clamp(13.5px, 1.95vh, 19.5px); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .step-pills { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+  .step-pill {
+    padding: 3px 11px; border-radius: 20px; font-size: clamp(12px, 1.55vh, 15px); font-weight: 800;
+    background: rgba(0,0,0,0.28); color: rgba(255,255,255,0.68); border: 1px solid rgba(255,255,255,0.18); cursor: pointer; white-space: nowrap;
+  }
+  .step-pill.active { background: var(--gold); color: #3B1806; border-color: #FEF08A; box-shadow: 0 0 12px rgba(250,204,21,0.45); }
+  .step-pill.done { background: rgba(16,185,129,0.28); color: #A7F3D0; border-color: #34D399; }
+  .timer-box {
+    font-size: clamp(17px, 2.5vh, 26px); font-weight: 900; color: var(--gold);
+    font-variant-numeric: tabular-nums; background: rgba(0,0,0,0.42);
+    padding: 2px 14px; border-radius: 8px; white-space: nowrap; flex-shrink: 0;
+  }
+  /* 卡片网格：单题聚焦以巨幅地图为绝对主角（左指令34%：右巨幅图66%） */
+  .card-grid { flex: 1; min-height: 0; display: grid; gap: 14px; }
+  .grid-single { grid-template-columns: 1fr; }
+  .grid-dual { grid-template-columns: 1fr 1fr; }
+  .grid-prep-map { grid-template-columns: 0.92fr 1.08fr; }
+  .grid-focus-map { grid-template-columns: 0.35fr 0.65fr; }
+  .big-card {
+    background: var(--panel); border: 1.5px solid var(--border); border-radius: 14px;
+    padding: 13px 16px; display: flex; flex-direction: column;
+    box-shadow: 0 8px 20px rgba(0,0,0,0.32); min-height: 0; overflow: hidden;
+  }
+  .card-tag {
+    display: inline-block; font-size: clamp(13px, 1.75vh, 17px); font-weight: 800;
+    padding: 3px 11px; border-radius: 6px; margin-bottom: 8px; width: fit-content; flex-shrink: 0;
+  }
+  .tag-new { background: rgba(251,191,36,0.18); color: var(--gold); border: 1px solid var(--gold); }
+  .tag-old { background: rgba(56,189,248,0.2); color: #BAE6FD; border: 1px solid #38BDF8; }
+  .tag-ans { background: rgba(16,185,129,0.2); color: #6EE7B7; border: 1px solid #34D399; }
+  /* 准备屏结构化分块板书 */
+  .pt-wrap { flex: 1; display: flex; flex-direction: column; gap: clamp(8px, 1.3vh, 13px); overflow-y: auto; justify-content: flex-start; padding-right: 2px; }
+  .pt-lead { font-size: calc(clamp(16px, 2.25vh, 23px) * var(--fscale)); font-weight: 900; color: #93C5FD; padding: 3px 2px; flex-shrink: 0; }
+  .pt-card {
+    background: rgba(8, 16, 32, 0.84); border: 1px solid #253B66; border-left: 5px solid var(--gold);
+    border-radius: 10px; padding: clamp(9px, 1.3vh, 14px) clamp(12px, 1.4vw, 18px);
+    font-size: calc(clamp(19.5px, 3.0vh, 33px) * var(--fscale)); line-height: 1.5; font-weight: 800; color: #FFF;
+  }
+  .pt-card.no-map { font-size: calc(clamp(23px, 3.5vh, 38px) * var(--fscale)); padding: 14px 20px; }
+  .pt-card.c1 { border-left-color: #FACC15; } .pt-card.c2 { border-left-color: #38BDF8; }
+  .pt-card.c3 { border-left-color: #34D399; } .pt-card.c4 { border-left-color: #FB7185; }
+  .hl { background: rgba(250,204,21,0.2); color: #FEF08A; border: 1px solid rgba(250,204,21,0.5); border-radius: 6px; padding: 0 6px; margin: 0 2px; }
+  /* 单屏大字默写题干区 */
+  .quiz-box { display: flex; flex-direction: column; gap: 10px; flex: 1; justify-content: center; overflow-y: auto; }
+  .quiz-line {
+    background: rgba(8, 16, 32, 0.82); border: 1px solid #243B67; border-left: 5px solid var(--gold); border-radius: 10px;
+    padding: 12px 15px; font-size: calc(clamp(20px, 2.95vh, 31px) * var(--fscale));
+    line-height: 1.5; font-weight: 800; color: #FFFFFF;
+  }
+  .quiz-line.no-map { font-size: calc(clamp(25px, 3.8vh, 42px) * var(--fscale)); padding: 20px 26px; line-height: 1.56; }
+  /* 地图与矢量SVG弹性容器 */
+  .map-holder {
+    flex: 1 1 0; min-height: 0; width: 100%; position: relative;
+    display: flex; align-items: center; justify-content: center;
+    background: #050E1D; border-radius: 11px; border: 1.5px solid #2B4575;
+    overflow: hidden; cursor: zoom-in; padding: 2px;
+  }
+  .map-holder img, .map-holder svg.geo-svg { width: 100%; height: 100%; object-fit: contain; display: block; }
+  .zoom-hint {
+    position: absolute; right: 10px; bottom: 8px; background: rgba(8,18,36,0.9);
+    color: #FDE047; border: 1px solid var(--gold); border-radius: 6px;
+    padding: 3px 10px; font-size: clamp(12px, 1.5vh, 14px); font-weight: 800; pointer-events: none;
+  }
+  .ans-box {
+    padding: 12px 16px; border-radius: 10px; background: rgba(16,185,129,0.16); border: 2px solid var(--emerald);
+    font-size: calc(clamp(18px, 2.65vh, 28px) * var(--fscale)); line-height: 1.54; font-weight: 800;
+    color: #A7F3D0; white-space: pre-line; overflow-y: auto; flex: 1;
+  }
+  .ans-box.dual-compact { flex: 0 0 auto; margin-top: 8px; max-height: 30vh; font-size: calc(clamp(15.5px, 2.15vh, 22px) * var(--fscale)); padding: 9px 13px; }
+  .ans-box.no-map { font-size: calc(clamp(23px, 3.4vh, 36px) * var(--fscale)); line-height: 1.62; padding: 22px 26px; }
+  .sub-notice {
+    background: var(--panel-alt); border-left: 4px solid var(--gold); padding: 8px 12px; border-radius: 8px;
+    font-size: calc(clamp(13.5px, 1.85vh, 19px) * var(--fscale)); color: #F1F5F9; font-weight: 700; margin-top: 8px; flex-shrink: 0;
+  }
+  .warn-strip {
+    background: rgba(159,18,57,0.38); border: 1.5px solid #FB7185; padding: 5px 14px; border-radius: 8px;
+    font-size: clamp(12.5px, 1.68vh, 17px); color: #FFE4E6; font-weight: 800; text-align: center; flex-shrink: 0;
+  }
+  /* 8秒门闩与停笔换红笔防抄锁屏面板 */
+  .gate-panel {
+    flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center;
+    border-radius: 16px; padding: 28px; gap: 18px;
+  }
+  .gate-bell { background: radial-gradient(circle, rgba(30,58,138,0.95) 0%, rgba(11,19,36,0.98) 80%); border: 2.5px solid #60A5FA; }
+  .gate-lock { background: radial-gradient(circle, rgba(136,19,55,0.95) 0%, rgba(28,8,18,0.98) 82%); border: 3px solid #FB7185; }
+  .gate-num {
+    font-size: clamp(56px, 9.5vh, 96px); font-weight: 900; color: var(--gold); line-height: 1;
+    background: rgba(0,0,0,0.42); padding: 12px 38px; border-radius: 18px; border: 2px solid var(--gold);
+  }
+  .gate-title { font-size: clamp(26px, 4.2vh, 44px); font-weight: 900; color: #FFF; letter-spacing: 0.5px; }
+  .gate-sub { font-size: clamp(17px, 2.5vh, 26px); font-weight: 700; color: #FDE68A; max-width: 82vw; }
+  .gate-actions { display: flex; gap: 16px; flex-wrap: wrap; justify-content: center; margin-top: 8px; }
+  /* 底栏 */
+  .bottombar {
+    height: clamp(50px, 7.2vh, 66px); padding: 0 16px; background: rgba(11,19,36,0.96);
+    border-top: 1.5px solid var(--border); display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-shrink: 0;
+  }
+  .act-btn {
+    height: clamp(38px, 5.2vh, 48px); padding: 0 16px; font-size: clamp(13px, 1.8vh, 18px);
+    font-weight: 800; border-radius: 10px; border: none; cursor: pointer; display: flex; align-items: center; gap: 6px; white-space: nowrap;
+  }
+  .btn-snooze { background: #334155; color: #F1F5F9; border: 1.5px solid #64748B; }
+  .btn-primary { background: var(--emerald); color: #052E16; box-shadow: 0 3px 12px rgba(16,185,129,0.38); }
+  .btn-sky { background: var(--sky); color: #082F49; box-shadow: 0 3px 12px rgba(56,189,248,0.35); }
+  .btn-warn { background: var(--gold); color: #451A03; }
+  .btn-sec { background: var(--panel-alt); color: #E2E8F0; border: 1px solid var(--border); }
+  /* 全屏放大灯箱（支持IMG与矢量SVG） & 设置弹窗 */
+  .zoom-mask {
+    position: fixed; inset: 0; background: rgba(5,10,20,0.95);
+    display: none; flex-direction: column; align-items: center; justify-content: center; z-index: 120; cursor: zoom-out;
+  }
+  .zoom-box { width: 95vw; height: 88vh; display: flex; align-items: center; justify-content: center; border-radius: 12px; border: 2px solid var(--gold); background: #050E1D; overflow: hidden; }
+  .zoom-box img, .zoom-box svg { width: 100%; height: 100%; object-fit: contain; }
+  .zoom-tip { margin-top: 8px; color: var(--gold); font-size: 16px; font-weight: 800; }
+  .modal-mask { position: fixed; inset: 0; background: rgba(0,0,0,0.8); display: none; align-items: center; justify-content: center; z-index: 99; }
+  .modal-box { width: min(780px, 92vw); max-height: 88vh; overflow-y: auto; background: var(--panel); border: 2px solid var(--border); border-radius: 16px; padding: 20px; }
+  .form-row { margin-bottom: 12px; }
+  .form-row label { display: block; font-size: 14px; font-weight: 700; color: var(--gold); margin-bottom: 5px; }
+  .form-input, .form-area { width: 100%; background: #09101F; color: #FFF; border: 1px solid var(--border); border-radius: 8px; padding: 7px 10px; font-size: 14.5px; font-family: inherit; }
+</style>
+</head>
+<body>
+<header class="topbar">
+  <div class="brand">
+    <div class="class-switch">
+      <button class="class-btn active" id="btn-c10" onclick="switchClass('10班')">10班</button>
+      <button class="class-btn" id="btn-c11" onclick="switchClass('11班')">11班</button>
+    </div>
+    <div class="ep-nav">
+      <button class="nav-btn" onclick="stepEp(-1)">◀ 上期</button>
+      <select class="ep-select" id="ep-select" onchange="selectEp(this.value)"></select>
+      <button class="nav-btn" onclick="stepEp(1)">下期 ▶</button>
+    </div>
+  </div>
+  <div class="top-right">
+    <button class="nav-btn auto-pill on" id="btn-autoflow" onclick="toggleAutoFlow()" title="开启后：到上课点响铃8秒自动进默写，旧题90秒自动切新题，默写结束停笔锁屏8秒自动亮标答">🤖 自动流转: 开</button>
+    <div style="display:flex;align-items:center;gap:4px;background:#080E1C;padding:3px 6px;border-radius:8px;border:1px solid var(--border);">
+      <button class="nav-btn" style="padding:3px 8px;" onclick="stepFont(-0.1)" title="调小字号">A-</button>
+      <span id="fscale-lbl" style="font-size:13px;color:var(--gold);font-weight:800;min-width:40px;text-align:center;">100%</span>
+      <button class="nav-btn" style="padding:3px 8px;" onclick="stepFont(0.1)" title="放大字号">A+</button>
+    </div>
+    <div class="clock-badge" id="live-clock">--:--:--</div>
+    <button class="nav-btn" id="btn-cloud-sync" onclick="syncCloudBankNow(true)" title="联网一键拉取最新题库（不丢本班期数进度）">☁️ 同步</button>
+    <button class="nav-btn" onclick="openSettings()">⚙️ 设置</button>
+    <button class="nav-btn" style="background:#881337;border-color:#FB7185;color:#FFE4E6;" onclick="closeBoardWindow()">✕ 关闭</button>
+  </div>
+</header>
+<div id="sync-toast" style="display:none;position:fixed;top:56px;right:16px;z-index:9999;background:#065F46;border:1.5px solid #34D399;color:#ECFDF5;padding:9px 16px;border-radius:10px;font-size:14px;font-weight:800;box-shadow:0 8px 24px rgba(0,0,0,0.45);"></div>
+
+<main class="main-stage" id="stage-root"></main>
+<footer class="bottombar" id="bottom-bar"></footer>
+
+<div class="zoom-mask" id="zoom-modal" onclick="this.style.display='none'">
+  <div class="zoom-box" id="zoom-box"></div>
+  <div class="zoom-tip">👆 轻触屏幕任意位置返回课堂界面</div>
+</div>
+
+<div class="modal-mask" id="settings-modal">
+  <div class="modal-box">
+    <h2 style="font-size:20px;margin-bottom:12px;color:var(--gold);">⚙️ 铃声校准、单题分段时长与临时插播</h2>
+    <div class="form-row" style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+      <div><label>广播铃声误差校准（分钟，快2填-2，慢3填3）：</label><input class="form-input" type="number" id="clock-offset" value="0"></div>
+      <div><label>铃响/停笔安全缓冲秒数（默认 8 秒）：</label><input class="form-input" type="number" id="gate-sec" value="8"></div>
+      <div><label>第1题【旧点快答】单屏时长（秒，默认 90 秒）：</label><input class="form-input" type="number" id="old-dur" value="90"></div>
+      <div><label>第2题【今日新点】单屏时长（秒，默认 210 秒）：</label><input class="form-input" type="number" id="new-dur" value="210"></div>
+    </div>
+    <hr style="border-color:var(--border);margin:12px 0;">
+    <div class="form-row">
+      <label>➕ 30秒临时插播一期新考点（留空则不新增）：</label>
+      <input class="form-input" id="new-mod" placeholder="微专题名称" style="margin-bottom:6px;">
+      <textarea class="form-area" id="new-prep" rows="2" placeholder="【课前准备屏】核心母法（用「」括起重点词自动高亮）" style="margin-bottom:6px;"></textarea>
+      <textarea class="form-area" id="new-quiz" rows="2" placeholder="【课上闭卷默写屏】默写指令" style="margin-bottom:6px;"></textarea>
+      <textarea class="form-area" id="new-ans" rows="2" placeholder="【标准答案】要点"></textarea>
+    </div>
+    <div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-top:14px;">
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+        <label class="nav-btn" style="display:inline-flex;align-items:center;">📂 导入题库(JSON)<input type="file" accept=".json" style="display:none" onchange="importBankJSON(event)"></label>
+        <button class="nav-btn" onclick="syncCloudBankNow(true)">☁️ 在线拉取最新题库</button>
+        <button class="nav-btn" onclick="resetDefaultBank()">🔄 恢复本地内置题库</button>
+        <span id="ver-badge-txt" style="font-size:12px;color:var(--muted);"></span>
+      </div>
+      <div style="display:flex;gap:10px;">
+        <button class="nav-btn" onclick="closeSettings()">取消</button>
+        <button class="nav-btn" style="background:var(--emerald);color:#052E16;" onclick="saveSettings()">💾 保存生效</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="geo_maps.js"></script>
+<script src="geo_bank_data.js"></script>
+<script id="app-logic">
+const params = new URLSearchParams(location.search);
+function verToNum(v) {
+  const digits = String(v || '').replace(/\D/g, '');
+  if (digits.length >= 8) return Number(digits.padEnd(14, '0').slice(0, 14));
+  return Number(digits || 0);
+}
+const DISK_BANK_VER = String(window.GEO_DEFAULT_BANK.build_version || window.GEO_DEFAULT_BANK.updated_at || window.GEO_DEFAULT_BANK.version || '20261117');
+window.GEO_RUNTIME_VER = localStorage.getItem('geo_bank_build_ver') || DISK_BANK_VER;
+
+function loadInitialBank() {
+  const cachedVer = localStorage.getItem('geo_bank_build_ver') || '';
+  const cachedObj = JSON.parse(localStorage.getItem('geo_bank_v6') || 'null');
+  // 当本地 geo_bank_data.js 版本比缓存更新时，自动升级内置题库，同时保留老师临时插播的 CUSTOM 考点
+  if (!cachedObj || !Array.isArray(cachedObj.items) || (verToNum(DISK_BANK_VER) > verToNum(cachedVer) && cachedObj.source !== 'manual_json')) {
+    const customs = (cachedObj && Array.isArray(cachedObj.items)) ? cachedObj.items.filter(x => x && x.series_id === 'CUSTOM') : [];
+    const merged = [...window.GEO_DEFAULT_BANK.items.map(x => ({...x})), ...customs];
+    merged.forEach((it, idx) => it.id = idx + 1);
+    localStorage.setItem('geo_bank_build_ver', DISK_BANK_VER);
+    localStorage.setItem('geo_bank_v6', JSON.stringify({items: merged, source: 'auto'}));
+    window.GEO_RUNTIME_VER = DISK_BANK_VER;
+    return merged;
+  }
+  return cachedObj.items;
+}
+let bank = loadInitialBank();
+let progress = JSON.parse(localStorage.getItem('geo_prog_v5') || '{"10班":0,"11班":0}');
+let clockOffsetMin = params.has('offset') ? parseInt(params.get('offset'), 10) : parseInt(localStorage.getItem('geo_offset_v5') || '0', 10);
+if (params.has('offset') && !isNaN(clockOffsetMin)) localStorage.setItem('geo_offset_v5', String(clockOffsetMin));
+let oldQuizSec = parseInt(localStorage.getItem('geo_old_sec_v6') || '90', 10);
+let newQuizSec = parseInt(localStorage.getItem('geo_new_sec_v6') || '210', 10);
+let gateDelaySec = parseInt(localStorage.getItem('geo_gate_sec_v6') || '8', 10);
+let autoFlow = localStorage.getItem('geo_autoflow_v6') !== '0';
+let fontScale = parseFloat(localStorage.getItem('geo_fscale_v6') || '1.0');
+
+// 内置10班/11班课表（即使双击手动打开，若处于课前15分钟内亦自动锚定真实上课铃声）
+const CLASS_SCHEDULES = {
+  "10班": { 1:["11:05"], 2:["08:55"], 3:["16:15","19:35"], 4:["12:30","13:25"], 5:["07:00","14:20"], 7:["17:50"] },
+  "11班": { 1:["15:20"], 2:["11:05"], 3:["08:55","17:50"], 4:["12:30","16:15"], 5:["07:00","08:00"], 7:["19:35"] }
+};
+
+function applyFontScale() {
+  document.documentElement.style.setProperty('--fscale', fontScale.toFixed(2));
+  const lbl = document.getElementById('fscale-lbl');
+  if (lbl) lbl.textContent = Math.round(fontScale * 100) + '%';
+}
+function stepFont(delta) {
+  fontScale = Math.max(0.7, Math.min(1.6, Math.round((fontScale + delta) * 100) / 100));
+  localStorage.setItem('geo_fscale_v6', String(fontScale));
+  applyFontScale();
+}
+function syncAutoBtn() {
+  const b = document.getElementById('btn-autoflow');
+  if (!b) return;
+  b.classList.toggle('on', autoFlow);
+  b.textContent = autoFlow ? '🤖 自动流转: 开' : '✋ 自动流转: 关';
+}
+function toggleAutoFlow() {
+  autoFlow = !autoFlow;
+  localStorage.setItem('geo_autoflow_v6', autoFlow ? '1' : '0');
+  syncAutoBtn();
+}
+
+let rawStage = params.get('stage') || 'prep';
+let state = {
+  cls: params.get('class') === '11' ? '11班' : (localStorage.getItem('geo_cls_v5') || '10班'),
+  epIdx: 0,
+  stage: rawStage === 'quiz' ? 'quiz_old' : rawStage,
+  oldIdx: params.get('old') ? Math.max(0, parseInt(params.get('old'), 10) - 1) : null,
+  varIdx: params.get('var') ? Math.max(0, parseInt(params.get('var'), 10)) : 0,
+  peekOld: false,
+  ansView: params.get('ansview') || 'old',
+  targetBellStr: params.get('target') || '',
+  targetEpochMs: null,
+  secLeft: 300,
+  paused: false
+};
+state.epIdx = params.get('ep') ? Math.max(0, Math.min(bank.length - 1, parseInt(params.get('ep'), 10) - 1)) : (progress[state.cls] || 0);
+if (state.epIdx === 0 && state.stage === 'quiz_old') state.stage = 'quiz_new';
+if (state.epIdx === 0 && state.ansView === 'old') state.ansView = 'new';
+
+function resolvePrepTargetBell() {
+  const nowCal = new Date(Date.now() + clockOffsetMin * 60000);
+  let tStr = state.targetBellStr;
+  if (!tStr) {
+    const dow = nowCal.getDay() === 0 ? 7 : nowCal.getDay();
+    const list = (CLASS_SCHEDULES[state.cls] && CLASS_SCHEDULES[state.cls][dow]) || [];
+    for (const hhmm of list) {
+      const [hh, mm] = hhmm.split(':').map(Number);
+      const tDate = new Date(nowCal); tDate.setHours(hh, mm, 0, 0);
+      const diffSec = Math.round((tDate.getTime() - nowCal.getTime()) / 1000);
+      if (diffSec >= 5 && diffSec <= 900) { tStr = hhmm; break; }
+    }
+  }
+  if (tStr && /^\d{1,2}:\d{2}$/.test(tStr)) {
+    const [hh, mm] = tStr.split(':').map(Number);
+    const tDate = new Date(nowCal); tDate.setHours(hh, mm, 0, 0);
+    const diffSec = Math.round((tDate.getTime() - nowCal.getTime()) / 1000);
+    if (diffSec > 0 && diffSec <= 1800) {
+      state.targetBellStr = tStr;
+      state.targetEpochMs = Date.now() + diffSec * 1000;
+      state.secLeft = diffSec;
+      return;
+    }
+  }
+  state.targetEpochMs = null;
+  state.secLeft = 300;
+}
+
+// 智能抽题：全历史池 + 艾宾浩斯遗忘节点(1/3/7期前)与本班错题加权 + 近3次冷却防连撞 + 多变体轮换
+function pickSmartOldQuestion(forceReroll) {
+  if (state.epIdx <= 0) { state.oldIdx = null; state.varIdx = 0; return; }
+  const recentKey = `geo_recent_old_v6_${state.cls}`;
+  let recent = JSON.parse(localStorage.getItem(recentKey) || '[]');
+  const ebb = new Set([state.epIdx - 1, state.epIdx - 3, state.epIdx - 7, state.epIdx - 14]);
+  const cands = [];
+  for (let i = 0; i < state.epIdx; i++) {
+    if (forceReroll && state.epIdx > 1 && i === state.oldIdx) continue;
+    if (!forceReroll && state.epIdx > 3 && recent.includes(i)) continue;
+    let w = 1;
+    if (ebb.has(i)) w += 2;
+    if ((bank[i].focus_tag || '').includes(state.cls.replace('班', ''))) w += 2;
+    for (let k = 0; k < w; k++) cands.push(i);
+  }
+  const pool = cands.length ? cands : Array.from({length: state.epIdx}, (_, i) => i);
+  const chosen = pool[Math.floor(Math.random() * pool.length)];
+  state.oldIdx = chosen;
+
+  const variants = bank[chosen].review_variants || [];
+  if (variants.length > 0) {
+    const vcKey = `geo_vcnt_v6_${state.cls}_${bank[chosen].id}`;
+    const cnt = parseInt(localStorage.getItem(vcKey) || '0', 10);
+    state.varIdx = cnt % variants.length;
+    localStorage.setItem(vcKey, String(cnt + 1));
+  } else {
+    state.varIdx = 0;
+  }
+  recent = [...recent.filter(x => x !== chosen).slice(-2), chosen];
+  localStorage.setItem(recentKey, JSON.stringify(recent));
+}
+
+function getActiveOldVariant(oldIt) {
+  if (!oldIt) return null;
+  const vs = oldIt.review_variants || [];
+  if (vs.length > 0) {
+    const idx = Math.max(0, Math.min(vs.length - 1, state.varIdx));
+    return { ...vs[idx], idx, total: vs.length };
+  }
+  return { prompt: oldIt.review_prompt || oldIt.quiz_prompt, answer: oldIt.review_answer || oldIt.standard_answer, markers: null, idx: 0, total: 1 };
+}
+
+function cycleOldVariant() {
+  if (state.oldIdx === null) return;
+  const vs = bank[state.oldIdx]?.review_variants || [];
+  if (vs.length > 1) { state.varIdx = (state.varIdx + 1) % vs.length; renderAll(); }
+}
+
+function rerollOldQuestion() {
+  pickSmartOldQuestion(true);
+  renderAll();
+}
+
+function playSound(kind) {
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const notes = kind === 'bell' ? [[587,0,0.22],[880,0.22,0.48]] : (kind === 'lock' ? [[784,0,0.18],[523,0.2,0.48]] : [[660,0,0.28]]);
+    notes.forEach(([freq, t0, t1]) => {
+      const osc = ctx.createOscillator(), g = ctx.createGain();
+      osc.type = 'sine'; osc.frequency.setValueAtTime(freq, ctx.currentTime + t0);
+      g.gain.setValueAtTime(0.18, ctx.currentTime + t0);
+      g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + t1);
+      osc.connect(g); g.connect(ctx.destination);
+      osc.start(ctx.currentTime + t0); osc.stop(ctx.currentTime + t1);
+    });
+  } catch(e) {}
+}
+
+function fmtHL(str) { return (str || '').replace(/「([^」]+)」/g, '<span class="hl">$1</span>'); }
+function renderPrepBlocks(raw, hasMap) {
+  const s = (raw || '').trim();
+  const m = s.match(/^([^：①\n]+)：\s*([\s\S]*)$/);
+  const lead = m ? m[1].trim() : '';
+  const body = m ? m[2].trim() : s;
+  const parts = body.split(/[；。\n]+/).map(x => x.trim()).filter(Boolean);
+  const clsExtra = hasMap ? '' : 'no-map';
+  return `<div class="pt-wrap">${lead ? `<div class="pt-lead">📌 ${lead}</div>` : ''}${parts.map((p, idx) => `<div class="pt-card c${(idx%4)+1} ${clsExtra}">${fmtHL(p)}</div>`).join('')}</div>`;
+}
+function renderQuizLines(raw, hasMap, borderCol) {
+  const s = (raw || '').replace(/^【[^】]+】\s*/, '').trim();
+  const parts = s.split(/[；\n]+/).map(x => x.trim()).filter(Boolean);
+  const clsExtra = hasMap ? '' : 'no-map';
+  const bStyle = borderCol ? `style="border-left-color:${borderCol};"` : '';
+  return `<div class="quiz-box">${parts.map(p => `<div class="quiz-line ${clsExtra}" ${bStyle}>${p}</div>`).join('')}</div>`;
+}
+window.zoomDiagramEl = function(holder) {
+  const zb = document.getElementById('zoom-box');
+  zb.innerHTML = '';
+  const svg = holder.querySelector('svg');
+  const img = holder.querySelector('img');
+  if (svg) zb.innerHTML = svg.outerHTML;
+  else if (img) zb.innerHTML = `<img src="${img.getAttribute('src')}" alt="全屏大图" />`;
+  document.getElementById('zoom-modal').style.display = 'flex';
+};
+function fmtMMSS(sec) {
+  const s = Math.max(0, Math.floor(sec));
+  return `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
+}
+
+function renderAll() {
+  applyFontScale(); syncAutoBtn();
+  document.getElementById('btn-c10').classList.toggle('active', state.cls === '10班');
+  document.getElementById('btn-c11').classList.toggle('active', state.cls === '11班');
+  document.getElementById('ep-select').innerHTML = bank.map((it, i) =>
+    `<option value="${i}" ${i===state.epIdx?'selected':''}>第${String(it.id).padStart(2,'0')}期｜${it.module}：${it.target_weakness}</option>`
+  ).join('');
+
+  const cur = bank[state.epIdx];
+  if (state.epIdx > 0 && (state.oldIdx === null || state.oldIdx >= state.epIdx)) pickSmartOldQuestion(false);
+  const oldIt = (state.epIdx > 0 && state.oldIdx !== null) ? bank[state.oldIdx] : null;
+  const oldVar = getActiveOldVariant(oldIt);
+
+  const prepDiag = window.renderGeoDiagram(cur.diagram_id, 'prep');
+  const quizDiagNew = window.renderGeoDiagram(cur.diagram_id, 'quiz');
+  const quizDiagOld = oldIt ? window.renderGeoDiagram(oldIt.diagram_id, 'quiz', oldVar?.markers) : '';
+  const ansDiagNew = window.renderGeoDiagram(cur.diagram_id, 'ans');
+  const ansDiagOld = oldIt ? window.renderGeoDiagram(oldIt.diagram_id, 'ans') : '';
+  const totalQuizSec = state.epIdx === 0 ? (oldQuizSec + newQuizSec) : (oldQuizSec + newQuizSec);
+
+  const root = document.getElementById('stage-root');
+  const bot = document.getElementById('bottom-bar');
+
+  if (state.stage === 'prep') {
+    const bellHint = state.targetBellStr ? `距 ${state.targetBellStr} 上课 ` : '准备 ';
+    root.innerHTML = `
+      <div class="stage-banner banner-prep">
+        <div class="banner-title">📢 课前准备（${state.cls}）· 认准轮廓特征与专有名词，铃响自动切入单屏闭卷默写！</div>
+        <div class="timer-box" id="stage-timer">${bellHint}${fmtMMSS(state.secLeft)}</div>
+      </div>
+      <div class="card-grid ${prepDiag ? 'grid-prep-map' : 'grid-single'}">
+        <div class="big-card">
+          <span class="card-tag tag-new">★ 今日必背母法（第${String(cur.id).padStart(2,'0')}期 · ${cur.module}）</span>
+          ${renderPrepBlocks(cur.prep_display, !!prepDiag)}
+          <div class="sub-notice">🔗 ${state.epIdx === 0 ? '首期免抽旧点，记熟9支洋流名称与海岸轮廓！' : `铃响后先用 ${oldQuizSec}秒 抽查1道历史旧点，再用 ${newQuizSec}秒 全默今日新点，快翻看通关本！`}</div>
+        </div>
+        ${prepDiag ? `<div class="big-card" style="padding:10px 12px;">
+          <span class="card-tag tag-new">🗺️ 标准空间轮廓 / 剖面母图（点击图片可全屏放大）</span>
+          ${prepDiag}
+        </div>` : ''}
+      </div>`;
+    bot.innerHTML = `
+      <button class="act-btn btn-snooze" onclick="snoozeBoard()">✋ 上节课未结束 · 延后2分钟</button>
+      <button class="act-btn btn-primary" onclick="startQuizFlow()">🔔 正式上课 · 立即开始闭卷默写 (${fmtMMSS(totalQuizSec)})</button>`;
+  } else if (state.stage === 'gate_quiz') {
+    root.innerHTML = `
+      <div class="gate-panel gate-bell">
+        <div class="gate-title">🔔 上课时间到！请立即合上书本与资料</div>
+        <div class="gate-num" id="stage-timer">${state.secLeft} 秒</div>
+        <div class="gate-sub">缓冲结束后自动进入【${state.epIdx > 0 ? `第1题 · 历史旧点极速快答 (${oldQuizSec}秒)` : `今日新点闭卷全默`}】</div>
+        <div class="gate-actions">
+          <button class="act-btn btn-snooze" onclick="delayGate(120)">✋ 有人讲话 · 延后2分钟</button>
+          <button class="act-btn btn-sec" onclick="cancelGateToPrep()">⏸ 暂不开考（留准备屏）</button>
+          <button class="act-btn btn-primary" onclick="startQuizFlow()">⚡ 立即开始默写</button>
+        </div>
+      </div>`;
+    bot.innerHTML = `<div style="color:var(--muted);font-size:14px;font-weight:700;">🛡️ 防拖堂/防无监考翻书安全门闩已激活（老师在过道巡视无需上台，读秒归零自动开考）</div><div></div>`;
+  } else if (state.stage === 'quiz_old' || (state.stage === 'quiz_new' && state.peekOld && oldIt)) {
+    const isPeek = state.stage === 'quiz_new';
+    root.innerHTML = `
+      <div class="stage-banner banner-quiz-old">
+        <div class="banner-title">⚡ ${isPeek ? '临时回看第1题（倒计时仍在继续！）' : `第1步 · 历史旧点极速快答（写在《通关本》第${String(cur.id).padStart(2,'0')}期·旧点栏）`}</div>
+        <div class="step-pills">
+          <span class="step-pill active">❶ 旧点快答</span>
+          <span class="step-pill" onclick="enterQuizNew()">❷ 今日新点</span>
+          <span class="step-pill" onclick="enterAns('old')">❸ 红笔订正</span>
+        </div>
+        <div class="timer-box" id="stage-timer">${state.paused ? '暂停 ' : ''}${fmtMMSS(state.secLeft)}</div>
+      </div>
+      <div class="card-grid ${quizDiagOld ? 'grid-focus-map' : 'grid-single'}">
+        <div class="big-card">
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:6px;margin-bottom:8px;flex-wrap:wrap;">
+            <span class="card-tag tag-old" style="margin:0;">🔄 抽检第${String(oldIt.id).padStart(2,'0')}期${oldVar.total > 1 ? ` · 考法${oldVar.idx+1}/${oldVar.total}` : ''}</span>
+            <div style="display:flex;gap:6px;">
+              ${oldVar.total > 1 ? `<button class="nav-btn" style="padding:3px 9px;font-size:12.5px;" onclick="cycleOldVariant()">🔀 换考法</button>` : ''}
+              ${state.epIdx > 1 ? `<button class="nav-btn" style="padding:3px 9px;font-size:12.5px;" onclick="rerollOldQuestion()">🎲 换旧题</button>` : ''}
+            </div>
+          </div>
+          ${renderQuizLines(oldVar.prompt, !!quizDiagOld, '#38BDF8')}
+          <div class="sub-notice" style="border-left-color:#38BDF8;">🎯 仅需作答本题标出的核心空，${isPeek ? '补写完请切回第2题！' : '时间到自动切换第2题（今日新点）！'}</div>
+        </div>
+        ${quizDiagOld ? `<div class="big-card" style="padding:10px 12px;">${quizDiagOld}</div>` : ''}
+      </div>`;
+    bot.innerHTML = isPeek
+      ? `<button class="act-btn btn-primary" onclick="togglePeekOld(false)">↩ 切回【第2题 · 今日新点全默】</button><div></div>`
+      : `<button class="act-btn btn-sec" onclick="backToPrep()">↩ 返回准备屏</button>
+         <div style="display:flex;gap:10px;">
+           <button class="act-btn btn-sec" onclick="addSec(30)">+30秒</button>
+           <button class="act-btn btn-sec" onclick="togglePause()">${state.paused ? '▶ 继续' : '⏸ 暂停'}</button>
+           <button class="act-btn btn-sky" onclick="enterQuizNew()">⏭ 提前进第2题（今日新点 ${fmtMMSS(newQuizSec)}）</button>
+         </div>`;
+  } else if (state.stage === 'quiz_new') {
+    const showTailCheck = oldIt && state.secLeft <= 35;
+    root.innerHTML = `
+      <div class="stage-banner banner-quiz-new">
+        <div class="banner-title">✍️ ${state.epIdx > 0 ? '第2步 · ' : ''}今日新点闭卷全默（第${String(cur.id).padStart(2,'0')}期 · ${cur.target_weakness}）</div>
+        <div class="step-pills">
+          ${oldIt ? `<span class="step-pill done" onclick="togglePeekOld(true)" title="点击可临时回看第1题">✓ ❶ 旧点已展示(点此回看)</span>` : ''}
+          <span class="step-pill active">❷ 今日新点全默</span>
+          <span class="step-pill" onclick="enterLockPen()">❸ 红笔订正</span>
+        </div>
+        <div class="timer-box" id="stage-timer">${state.paused ? '暂停 ' : ''}${fmtMMSS(state.secLeft)}</div>
+      </div>
+      <div class="card-grid ${quizDiagNew ? 'grid-focus-map' : 'grid-single'}">
+        <div class="big-card">
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:6px;margin-bottom:8px;">
+            <span class="card-tag tag-new" style="margin:0;">★ 今日主菜 · 第${String(cur.id).padStart(2,'0')}期全默</span>
+            ${oldIt ? `<button class="nav-btn" style="padding:3px 9px;font-size:12.5px;border-color:#38BDF8;color:#BAE6FD;" onclick="togglePeekOld(true)">👁️ 回看第1题</button>` : ''}
+          </div>
+          ${renderQuizLines(cur.quiz_prompt, !!quizDiagNew, '#FACC15')}
+          ${showTailCheck ? `<div class="sub-notice" style="border-left-color:#38BDF8;background:rgba(12,74,110,0.45);">🔍 交卷前检查（第1题旧点）：${oldVar.prompt}</div>` : ''}
+        </div>
+        ${quizDiagNew ? `<div class="big-card" style="padding:10px 12px;">${quizDiagNew}</div>` : ''}
+      </div>`;
+    bot.innerHTML = `
+      <button class="act-btn btn-sec" onclick="${oldIt ? 'reenterQuizOld()' : 'backToPrep()'}">${oldIt ? '◀ 返回第1题(旧点)' : '↩ 返回准备屏'}</button>
+      <div style="display:flex;gap:10px;">
+        <button class="act-btn btn-sec" onclick="addSec(60)">+1分钟</button>
+        <button class="act-btn btn-sec" onclick="togglePause()">${state.paused ? '▶ 继续' : '⏸ 暂停'}</button>
+        <button class="act-btn btn-warn" onclick="enterAns(oldIt ? 'old' : 'new')">✅ 结束默写 · 亮出标准答案</button>
+      </div>`;
+  } else if (state.stage === 'lock_pen') {
+    root.innerHTML = `
+      <div class="gate-panel gate-lock">
+        <div class="gate-title">🛑 默写时间到！请立即放下黑笔 · 全员举起红笔！</div>
+        <div class="gate-num" id="stage-timer">${state.secLeft} 秒</div>
+        <div class="gate-sub">读秒归零自动亮出高清标准答案（严禁手握黑笔偷补，违者按未过关重背处理！）</div>
+        <div class="gate-actions">
+          <button class="act-btn btn-snooze" onclick="extendFromLock(30)">⏳ 全班未写完 · 再给30秒</button>
+          <button class="act-btn btn-sec" onclick="togglePause()">${state.paused ? '▶ 继续读秒' : '⏸ 暂停亮答'}</button>
+          <button class="act-btn btn-primary" onclick="enterAns(state.epIdx > 0 ? 'old' : 'new')">✅ 全员已举红笔 · 立即亮标答</button>
+        </div>
+      </div>`;
+    bot.innerHTML = `<div style="color:#FDA4AF;font-size:14.5px;font-weight:800;">🔒 防秒抄保护屏：先收黑笔再亮答案，老师可在台下扫视全班换笔情况</div><div></div>`;
+  } else {
+    const vMode = (!oldIt && state.ansView === 'old') ? 'new' : state.ansView;
+    root.innerHTML = `
+      <div class="stage-banner banner-ans">
+        <div class="banner-title">🎯 红笔逐字逐图订正（点任意图片可全屏放大）</div>
+        <div class="step-pills">
+          ${oldIt ? `<span class="step-pill ${vMode==='old'?'active':''}" onclick="setAnsView('old')">❶ 第1题(旧点)巨幅标答</span>` : ''}
+          <span class="step-pill ${vMode==='new'?'active':''}" onclick="setAnsView('new')">❷ ${oldIt?'第2题(新点)':'今日新点'}巨幅标答</span>
+          ${oldIt ? `<span class="step-pill ${vMode==='dual'?'active':''}" onclick="setAnsView('dual')">⊞ 双栏同屏总览</span>` : ''}
+        </div>
+        <div style="font-size:clamp(13px,1.7vh,16.5px);color:#A7F3D0;white-space:nowrap;">${state.cls} · 第${String(cur.id).padStart(2,'0')}期</div>
+      </div>
+      ${vMode === 'old' && oldIt ? `
+        <div class="card-grid ${ansDiagOld ? 'grid-focus-map' : 'grid-single'}">
+          <div class="big-card">
+            <span class="card-tag tag-old">✅ 第1题（抽检第${String(oldIt.id).padStart(2,'0')}期·考法${oldVar.idx+1}）标准答案</span>
+            <div class="sub-notice" style="margin:0 0 10px 0;border-left-color:#38BDF8;">题目：${oldVar.prompt}</div>
+            <div class="ans-box ${ansDiagOld ? '' : 'no-map'}" style="border-color:#38BDF8;color:#E0F2FE;background:rgba(14,116,144,0.22);">${oldVar.answer}</div>
+          </div>
+          ${ansDiagOld ? `<div class="big-card" style="padding:10px 12px;">${ansDiagOld}</div>` : ''}
+        </div>` : vMode === 'new' ? `
+        <div class="card-grid ${ansDiagNew ? 'grid-focus-map' : 'grid-single'}">
+          <div class="big-card">
+            <span class="card-tag tag-ans">✅ ${oldIt?'第2题':'本题'}（第${String(cur.id).padStart(2,'0')}期·${cur.target_weakness}）标准答案</span>
+            <div class="ans-box ${ansDiagNew ? '' : 'no-map'}">${cur.standard_answer}</div>
+          </div>
+          ${ansDiagNew ? `<div class="big-card" style="padding:10px 12px;">${ansDiagNew}</div>` : ''}
+        </div>` : `
+        <div class="card-grid grid-dual">
+          <div class="big-card">
+            <span class="card-tag tag-old">✅ 第1题（第${String(oldIt.id).padStart(2,'0')}期·旧点快答）标答</span>
+            ${ansDiagOld}
+            <div class="ans-box ${ansDiagOld ? 'dual-compact' : 'no-map'}" style="border-color:#38BDF8;color:#E0F2FE;background:rgba(14,116,144,0.2);">${oldVar.answer}</div>
+          </div>
+          <div class="big-card">
+            <span class="card-tag tag-ans">✅ 第2题（第${String(cur.id).padStart(2,'0')}期·今日新点）标答</span>
+            ${ansDiagNew}
+            <div class="ans-box ${ansDiagNew ? 'dual-compact' : 'no-map'}">${cur.standard_answer}</div>
+          </div>
+        </div>`}
+      <div class="warn-strip">⚠️ 请拿红笔逐字逐图订正！凡未全对的同学，今日课后主动带通关本找地理老师背诵销账！</div>`;
+    bot.innerHTML = `
+      <button class="act-btn btn-sec" onclick="enterQuizNew()">↩ 返回默写题面</button>
+      <div style="display:flex;gap:10px;">
+        ${vMode === 'old' ? `<button class="act-btn btn-warn" onclick="setAnsView('new')">▶ 下一题：看第2题（今日新点）巨幅标答</button>` : ''}
+        ${vMode === 'new' && oldIt ? `<button class="act-btn btn-sec" onclick="setAnsView('dual')">⊞ 切换双栏同屏总览</button>` : ''}
+        <button class="act-btn btn-primary" onclick="finishAndAdvance()">🎉 完成本节订正 · 自动推进至下一期</button>
+      </div>`;
+  }
+}
+function switchClass(c) {
+  state.cls = c; localStorage.setItem('geo_cls_v5', c);
+  state.epIdx = progress[c] || 0; state.oldIdx = null; state.stage = 'prep';
+  resolvePrepTargetBell(); renderAll();
+}
+function stepEp(d) {
+  state.epIdx = Math.max(0, Math.min(bank.length - 1, state.epIdx + d));
+  progress[state.cls] = state.epIdx; localStorage.setItem('geo_prog_v5', JSON.stringify(progress));
+  state.oldIdx = null; renderAll();
+}
+function selectEp(v) {
+  state.epIdx = parseInt(v, 10) || 0;
+  progress[state.cls] = state.epIdx; localStorage.setItem('geo_prog_v5', JSON.stringify(progress));
+  state.oldIdx = null; renderAll();
+}
+
+function startQuizFlow() {
+  state.paused = false; state.peekOld = false;
+  if (state.epIdx <= 0) {
+    state.stage = 'quiz_new'; state.secLeft = oldQuizSec + newQuizSec;
+  } else {
+    if (state.oldIdx === null || state.oldIdx >= state.epIdx) pickSmartOldQuestion(false);
+    state.stage = 'quiz_old'; state.secLeft = oldQuizSec;
+  }
+  playSound('bell'); renderAll();
+}
+function reenterQuizOld() {
+  if (state.epIdx <= 0) return;
+  state.stage = 'quiz_old'; state.secLeft = Math.max(30, oldQuizSec); state.paused = false; renderAll();
+}
+function enterQuizNew() {
+  state.stage = 'quiz_new'; state.peekOld = false; state.secLeft = newQuizSec; state.paused = false;
+  playSound('step'); renderAll();
+}
+function togglePeekOld(flag) { state.peekOld = !!flag; renderAll(); }
+function enterLockPen() {
+  state.stage = 'lock_pen'; state.secLeft = gateDelaySec; state.paused = false;
+  playSound('lock'); renderAll();
+}
+function enterAns(viewMode) {
+  state.stage = 'ans'; state.paused = false;
+  state.ansView = viewMode || (state.epIdx > 0 ? 'old' : 'new');
+  playSound('bell'); renderAll();
+}
+function setAnsView(v) { state.ansView = v; renderAll(); }
+
+function delayGate(sec) {
+  state.stage = 'prep'; state.targetBellStr = ''; state.targetEpochMs = null;
+  state.secLeft = sec; state.paused = false; renderAll();
+}
+function cancelGateToPrep() {
+  state.stage = 'prep'; state.targetBellStr = ''; state.targetEpochMs = null;
+  state.secLeft = 180; state.paused = true; renderAll();
+}
+function extendFromLock(sec) {
+  state.stage = 'quiz_new'; state.peekOld = false; state.secLeft = sec; state.paused = false; renderAll();
+}
+function backToPrep() {
+  state.stage = 'prep'; state.paused = false; resolvePrepTargetBell(); renderAll();
+}
+function addSec(s) {
+  if (state.targetEpochMs && state.stage === 'prep') state.targetEpochMs += s * 1000;
+  state.secLeft += s; renderAll();
+}
+function togglePause() { state.paused = !state.paused; renderAll(); }
+
+function closeBoardWindow() {
+  window.close();
+  setTimeout(() => { document.body.innerHTML = '<div style="margin:auto;text-align:center;"><h1 style="color:#FACC15;">已结束本节展示，请按 Alt+F4 或右上角 × 关闭窗口</h1></div>'; }, 300);
+}
+function snoozeBoard() {
+  window.close();
+  document.body.innerHTML = `<div style="margin:auto;text-align:center;padding:32px;"><h1 style="font-size:28px;color:var(--gold);margin-bottom:14px;">👌 已退回桌面让位</h1><button class="act-btn btn-primary" style="margin:0 auto;" onclick="location.reload()">▶ 恢复地理课前准备屏</button></div>`;
+}
+function finishAndAdvance() {
+  if (state.epIdx < bank.length - 1) state.epIdx++;
+  progress[state.cls] = state.epIdx; localStorage.setItem('geo_prog_v5', JSON.stringify(progress));
+  state.stage = 'prep'; state.oldIdx = null; resolvePrepTargetBell();
+  if (window.opener || window.history.length <= 1) { window.close(); }
+  renderAll();
+}
+
+function openSettings() {
+  document.getElementById('clock-offset').value = clockOffsetMin;
+  document.getElementById('gate-sec').value = gateDelaySec;
+  document.getElementById('old-dur').value = oldQuizSec;
+  document.getElementById('new-dur').value = newQuizSec;
+  updateVerBadge();
+  document.getElementById('settings-modal').style.display = 'flex';
+}
+function closeSettings() { document.getElementById('settings-modal').style.display = 'none'; }
+function saveSettings() {
+  clockOffsetMin = parseInt(document.getElementById('clock-offset').value || '0', 10);
+  gateDelaySec = Math.max(3, Math.min(30, parseInt(document.getElementById('gate-sec').value || '8', 10)));
+  oldQuizSec = Math.max(20, parseInt(document.getElementById('old-dur').value || '90', 10));
+  newQuizSec = Math.max(30, parseInt(document.getElementById('new-dur').value || '210', 10));
+  localStorage.setItem('geo_offset_v5', String(clockOffsetMin));
+  localStorage.setItem('geo_gate_sec_v6', String(gateDelaySec));
+  localStorage.setItem('geo_old_sec_v6', String(oldQuizSec));
+  localStorage.setItem('geo_new_sec_v6', String(newQuizSec));
+
+  const np = document.getElementById('new-prep').value.trim(), nq = document.getElementById('new-quiz').value.trim();
+  if (np && nq) {
+    const na = document.getElementById('new-ans').value.trim() || '见教师讲解';
+    bank.splice(state.epIdx, 0, { id: bank.length+1, series_id: 'CUSTOM', diagram_id: '', module: document.getElementById('new-mod').value.trim()||'临时插播考点', target_weakness: '课堂/作业错点插播', focus_tag: 'both', prep_display: np, quiz_prompt: nq, review_prompt: nq, standard_answer: na, review_answer: na, review_variants: [{prompt: nq, answer: na}] });
+    bank.forEach((it, idx) => it.id = idx + 1);
+    localStorage.setItem('geo_bank_v6', JSON.stringify({items: bank}));
+    document.getElementById('new-prep').value = ''; document.getElementById('new-quiz').value = '';
+  }
+  closeSettings();
+  if (state.stage === 'prep') resolvePrepTargetBell();
+  renderAll();
+}
+function resetDefaultBank() {
+  localStorage.removeItem('geo_bank_v6');
+  localStorage.setItem('geo_bank_build_ver', DISK_BANK_VER);
+  window.GEO_RUNTIME_VER = DISK_BANK_VER;
+  bank = window.GEO_DEFAULT_BANK.items.map(x => ({...x}));
+  state.epIdx = Math.min(state.epIdx, bank.length - 1); state.oldIdx = null;
+  closeSettings(); renderAll();
+  showSyncToast(`✅ 已恢复本地内置题库（共 ${bank.length} 期）`);
+}
+function importBankJSON(ev) {
+  const f = ev.target.files[0]; if (!f) return;
+  const rd = new FileReader();
+  rd.onload = e => { try { const obj = JSON.parse(e.target.result); if (Array.isArray(obj.items) && obj.items.length) { bank = obj.items; localStorage.setItem('geo_bank_v6', JSON.stringify({items: bank, source: 'manual_json'})); state.epIdx = 0; alert(`成功导入 ${bank.length} 期题库！`); closeSettings(); renderAll(); } } catch(err) { alert('JSON格式有误'); } };
+  rd.readAsText(f, 'utf-8');
+}
+
+function showSyncToast(msg, isErr) {
+  const el = document.getElementById('sync-toast');
+  if (!el) return;
+  el.style.background = isErr ? '#7F1D1D' : '#065F46';
+  el.style.borderColor = isErr ? '#F87171' : '#34D399';
+  el.textContent = msg;
+  el.style.display = 'block';
+  clearTimeout(window._syncToastTimer);
+  window._syncToastTimer = setTimeout(() => { el.style.display = 'none'; }, 4200);
+}
+function updateVerBadge() {
+  const el = document.getElementById('ver-badge-txt');
+  if (el) el.textContent = `当前版本: v${window.GEO_RUNTIME_VER}（共 ${bank.length} 期）`;
+}
+async function fetchTextWithFallback(urls, timeoutMs) {
+  for (const u of urls) {
+    try {
+      const ctrl = new AbortController();
+      const tid = setTimeout(() => ctrl.abort(), timeoutMs || 5500);
+      const r = await fetch(u, { cache: 'no-store', signal: ctrl.signal });
+      clearTimeout(tid);
+      if (r.ok) return await r.text();
+    } catch (_) {}
+  }
+  return null;
+}
+async function syncCloudBankNow(manual) {
+  const btn = document.getElementById('btn-cloud-sync');
+  if (manual && btn) { btn.textContent = '⏳ 同步中...'; btn.disabled = true; }
+  try {
+    let shaRef = 'main';
+    if (manual) {
+      try {
+        const cTxt = await fetchTextWithFallback(['https://api.github.com/repos/AutumnSorrow/geo-pass-tracker/commits/main'], 4000);
+        if (cTxt) { const cObj = JSON.parse(cTxt); if (cObj && cObj.sha) shaRef = cObj.sha; }
+      } catch (_) {}
+    }
+    const ts = Date.now();
+    const bases = shaRef !== 'main'
+      ? [
+          `https://raw.githubusercontent.com/AutumnSorrow/geo-pass-tracker/${shaRef}/board/`,
+          `https://gcore.jsdelivr.net/gh/AutumnSorrow/geo-pass-tracker@${shaRef}/board/`,
+          `https://testingcf.jsdelivr.net/gh/AutumnSorrow/geo-pass-tracker@${shaRef}/board/`,
+          `https://autumnsorrow.github.io/geo-pass-tracker/board/`
+        ]
+      : [
+          `https://autumnsorrow.github.io/geo-pass-tracker/board/`,
+          `https://raw.githubusercontent.com/AutumnSorrow/geo-pass-tracker/main/board/`,
+          `https://gcore.jsdelivr.net/gh/AutumnSorrow/geo-pass-tracker@main/board/`
+        ];
+    const mTxt = await fetchTextWithFallback(bases.map(b => `${b}board_manifest.json?t=${ts}`), 5000);
+    if (!mTxt) {
+      if (manual) showSyncToast('⚠️ 当前黑板未连外网，请使用U盘【一键更新】脚本', true);
+      return;
+    }
+    const manifest = JSON.parse(mTxt);
+    const remoteVer = String(manifest.build_version || '');
+    const curVer = String(localStorage.getItem('geo_bank_build_ver') || DISK_BANK_VER);
+    const isNewer = remoteVer && verToNum(remoteVer) > verToNum(curVer);
+    if (!manual && !isNewer) return;
+
+    const jsTxt = await fetchTextWithFallback(bases.map(b => `${b}geo_bank_data.js?t=${ts}`), 7000);
+    if (!jsTxt) { if (manual) showSyncToast('⚠️ 题库下载超时，请重试', true); return; }
+    const jsonPart = jsTxt.replace(/^\s*window\.GEO_DEFAULT_BANK\s*=\s*/, '').replace(/;\s*$/, '');
+    const remoteBankObj = JSON.parse(jsonPart);
+    if (!Array.isArray(remoteBankObj.items) || !remoteBankObj.items.length) return;
+
+    const customs = bank.filter(x => x && x.series_id === 'CUSTOM');
+    const merged = [...remoteBankObj.items, ...customs];
+    merged.forEach((it, idx) => it.id = idx + 1);
+    bank = merged;
+    const finalVer = String(remoteBankObj.build_version || remoteVer || curVer);
+    window.GEO_RUNTIME_VER = finalVer;
+    window.GEO_CLOUD_BOARD_BASES = bases;
+    localStorage.setItem('geo_bank_build_ver', finalVer);
+    localStorage.setItem('geo_bank_v6', JSON.stringify({items: bank, source: 'cloud'}));
+    state.epIdx = Math.min(state.epIdx, bank.length - 1);
+    updateVerBadge();
+    if (state.stage === 'prep' || manual) renderAll();
+    showSyncToast(isNewer
+      ? `🎉 已同步至最新 v${finalVer}（共 ${bank.length} 期题库）！`
+      : `✅ 当前已是最新题库 v${finalVer}（共 ${bank.length} 期）`);
+  } catch (e) {
+    if (manual) showSyncToast('⚠️ 云同步失败，请检查教室网络或用U盘更新', true);
+  } finally {
+    if (manual && btn) { btn.textContent = '☁️ 同步'; btn.disabled = false; }
+  }
+}
+
+function tickClock() {
+  const now = new Date(Date.now() + clockOffsetMin * 60000);
+  const el = document.getElementById('live-clock');
+  if (el) el.textContent = `${state.cls} ` + now.toLocaleTimeString('zh-CN', {hour12:false});
+}
+
+function onStageTimerZero() {
+  if (!autoFlow) { playSound('bell'); return; }
+  if (state.stage === 'prep') { state.stage = 'gate_quiz'; state.secLeft = gateDelaySec; playSound('bell'); renderAll(); }
+  else if (state.stage === 'gate_quiz') { startQuizFlow(); }
+  else if (state.stage === 'quiz_old') { enterQuizNew(); }
+  else if (state.stage === 'quiz_new') { enterLockPen(); }
+  else if (state.stage === 'lock_pen') { enterAns(state.epIdx > 0 ? 'old' : 'new'); }
+}
+
+// 初始化各状态默认时长
+if (state.stage === 'prep') resolvePrepTargetBell();
+else if (state.stage === 'gate_quiz' || state.stage === 'lock_pen') state.secLeft = gateDelaySec;
+else if (state.stage === 'quiz_old') state.secLeft = oldQuizSec;
+else if (state.stage === 'quiz_new') state.secLeft = state.epIdx === 0 ? (oldQuizSec + newQuizSec) : newQuizSec;
+
+setInterval(() => {
+  tickClock();
+  const timedStages = ['prep', 'gate_quiz', 'quiz_old', 'quiz_new', 'lock_pen'];
+  if (timedStages.includes(state.stage) && !state.paused && state.secLeft > 0) {
+    if (state.stage === 'prep' && state.targetEpochMs) {
+      state.secLeft = Math.max(0, Math.round((state.targetEpochMs - Date.now()) / 1000));
+    } else {
+      state.secLeft--;
+    }
+    if (state.stage === 'quiz_new' && state.secLeft === 35 && state.epIdx > 0 && !state.peekOld) {
+      renderAll(); // 进入最后35秒自动浮现第1题收尾检查条
+    }
+    const tb = document.getElementById('stage-timer');
+    if (tb) {
+      if (state.stage === 'gate_quiz' || state.stage === 'lock_pen') tb.textContent = `${state.secLeft} 秒`;
+      else if (state.stage === 'prep') tb.textContent = (state.targetBellStr ? `距 ${state.targetBellStr} 上课 ` : '准备 ') + fmtMMSS(state.secLeft);
+      else tb.textContent = fmtMMSS(state.secLeft);
+    }
+    if (state.secLeft <= 0) onStageTimerZero();
+  }
+}, 1000);
+tickClock(); renderAll(); updateVerBadge();
+if (state.stage === 'prep') { setTimeout(() => syncCloudBankNow(false), 1500); }
+</script>
+</body>
+</html>

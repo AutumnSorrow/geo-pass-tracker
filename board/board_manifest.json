@@ -1,0 +1,282 @@
+{
+    "build_version":  "20261118.095405",
+    "published_at":  "2026-11-18 09:54:06",
+    "episode_count":  28,
+    "files":  [
+                  {
+                      "path":  "geo_bank_data.js",
+                      "size":  80239,
+                      "sha256":  "5dca4942c148bced758892c8a98d9aa0a1bfe2ff5199fa7cfd2139d7810d93da"
+                  },
+                  {
+                      "path":  "geo_maps.js",
+                      "size":  4261,
+                      "sha256":  "76b3f0cd5fc207841f47c94d8ef529466b00d14be5e67ab74ac954a4c4a813cf"
+                  },
+                  {
+                      "path":  "guard_daemon.ps1",
+                      "size":  14684,
+                      "sha256":  "ff0c91fb4e662cb15ea45ac98b1b81b360ef664bc8b2bd943d63b6063b9b6300"
+                  },
+                  {
+                      "path":  "schedule_template.json",
+                      "size":  6989,
+                      "sha256":  "9da69044c92cd1ab542f7e452d8d397571366ea554b01b3a9c3b4573ee12a8b3"
+                  },
+                  {
+                      "path":  "sync_updater.ps1",
+                      "size":  10089,
+                      "sha256":  "abb20abc119a0a2bb591ebcb0a1858403a2c4b3148061f432f7a829ff1644ed8"
+                  },
+                  {
+                      "path":  "一键停止自动弹窗.bat",
+                      "size":  106,
+                      "sha256":  "54658729f14993e959a016213db0219db9493d00c68ec23dd6b4b61269beeeda"
+                  },
+                  {
+                      "path":  "一键同步最新题库与功能.bat",
+                      "size":  109,
+                      "sha256":  "01f6acf2fe0406b44cc3090a6bddaee6a39c3c6d1dd384bc9425da746a9ee7f7"
+                  },
+                  {
+                      "path":  "一键部署开机值守到本班黑板.bat",
+                      "size":  113,
+                      "sha256":  "6cc0c72e3409007b774c728de7baac12c234157452720a0e351b5654f95d7b56"
+                  },
+                  {
+                      "path":  "地理课前通关大屏.html",
+                      "size":  54201,
+                      "sha256":  "c2ecbc1dca0d1ee9b2afb11898f328b1030fe2e7e27fa7a409d847eb2eeef87f"
+                  },
+                  {
+                      "path":  "立即手动打开大屏.bat",
+                      "size":  137,
+                      "sha256":  "60d33cf490dd345dc46cb0743e24aff01ae40a8f7d3d0cc216cc199e03908c1a"
+                  },
+                  {
+                      "path":  "diagrams/diag_alluvial_fan_ans.png",
+                      "size":  107795,
+                      "sha256":  "40df88e403a8afd16e2703de30587cd8ca5337408711990cc28beea1d8cab48c"
+                  },
+                  {
+                      "path":  "diagrams/diag_alluvial_fan_quiz.png",
+                      "size":  87399,
+                      "sha256":  "8aef3fca94984b8b8cc6e3691baf276e805feb676b9105653041d1ed443f3757"
+                  },
+                  {
+                      "path":  "diagrams/diag_climate_model_ans.png",
+                      "size":  99505,
+                      "sha256":  "7db7040c93743b81d969b9f31a3ccaebb3585cc817bc138349d71ec6fbdc43d8"
+                  },
+                  {
+                      "path":  "diagrams/diag_climate_model_clean.png",
+                      "size":  26771,
+                      "sha256":  "364ad576866bd7fe9240094a3e1b0f5858ec669adb5be52b8c29cac9ff876eaa"
+                  },
+                  {
+                      "path":  "diagrams/diag_climate_model_quiz.png",
+                      "size":  47335,
+                      "sha256":  "fd4a6a2aeb567ae5003d69abb9bb77b0a9c89e53a23b56f82849cf4460e7943d"
+                  },
+                  {
+                      "path":  "diagrams/diag_climograph_ans.png",
+                      "size":  69198,
+                      "sha256":  "5738d639f352031b47814ac071254c8609be2805ee2b5b8486405dfb80fe24ba"
+                  },
+                  {
+                      "path":  "diagrams/diag_climograph_quiz.png",
+                      "size":  58892,
+                      "sha256":  "3cef5ada5185c4555e8f1b619251bf6a31e454ea0815542792cb3a9add435533"
+                  },
+                  {
+                      "path":  "diagrams/diag_cyclone_fronts_ans.png",
+                      "size":  134643,
+                      "sha256":  "21649ca659c12bc7bd3ee1dcad74231767d176fcc7ab0caab14c0d42211ac3ac"
+                  },
+                  {
+                      "path":  "diagrams/diag_cyclone_fronts_clean.png",
+                      "size":  90173,
+                      "sha256":  "395c9fcef90284564844b25516fbaafed53a10addfcec14529ac23d167d2d318"
+                  },
+                  {
+                      "path":  "diagrams/diag_cyclone_fronts_quiz.png",
+                      "size":  120831,
+                      "sha256":  "190d9a8d2b4ea22428af49d289d990f15b2de33e92dc0f1d784d34a6a31721e9"
+                  },
+                  {
+                      "path":  "diagrams/diag_dune_contour_ans.png",
+                      "size":  113202,
+                      "sha256":  "54a387765750748f0b50a4d281ed2b60325eff252ba1c8dfc760db4cd24be7bd"
+                  },
+                  {
+                      "path":  "diagrams/diag_dune_contour_quiz.png",
+                      "size":  100756,
+                      "sha256":  "22fd86dd0d76afa4e1aa29d8e0fac422dfc7b9c196a0f798f4c2ef4467d5453a"
+                  },
+                  {
+                      "path":  "diagrams/diag_enso_ans.png",
+                      "size":  90216,
+                      "sha256":  "ed9d1103693dd3c739d0227396e30d8e19f07cd9dc31136f1d656cbc2e1df5c0"
+                  },
+                  {
+                      "path":  "diagrams/diag_enso_quiz.png",
+                      "size":  78597,
+                      "sha256":  "47f9594808004734d3591eb0787e9f7913a8e248df1370eb0508b1ba6e2c33b4"
+                  },
+                  {
+                      "path":  "diagrams/diag_fault_ans.png",
+                      "size":  73474,
+                      "sha256":  "2205aa2fa92b7f6d13c6021431b2e0c5e3b1a33971e433b628b326879a5bfe33"
+                  },
+                  {
+                      "path":  "diagrams/diag_fault_quiz.png",
+                      "size":  71624,
+                      "sha256":  "5e8aeb590c195671bf478b32e9257ef96a2b005b490935e20b13c5ca0603633c"
+                  },
+                  {
+                      "path":  "diagrams/diag_fold_fault_ans.png",
+                      "size":  137056,
+                      "sha256":  "5a551186fe439451515f86f4a70c8c70f6835f524d5353e22424e10deef4728b"
+                  },
+                  {
+                      "path":  "diagrams/diag_fold_fault_quiz.png",
+                      "size":  118847,
+                      "sha256":  "7b363ff4120c86e2c98c927d2b9da74b6d1b046744203d0f8229dddbaaf3c864"
+                  },
+                  {
+                      "path":  "diagrams/diag_hydrograph_ans.png",
+                      "size":  108523,
+                      "sha256":  "04d88fe7d9d061c70c4d015444e8698cbbeb2116117288916742571f88585dd6"
+                  },
+                  {
+                      "path":  "diagrams/diag_hydrograph_quiz.png",
+                      "size":  102037,
+                      "sha256":  "b369a084d07115a0164ec2e55a9734bab02b834fd30f2326496abc0d3014b803"
+                  },
+                  {
+                      "path":  "diagrams/diag_isobar_thermal_ans.png",
+                      "size":  81617,
+                      "sha256":  "43fab878c0082cb787e38361e481909a6d7a552fca0d5df273f0f649508bf933"
+                  },
+                  {
+                      "path":  "diagrams/diag_isobar_thermal_quiz.png",
+                      "size":  54187,
+                      "sha256":  "d5755091123f1541055ce71995e6ab60900b8ab9b87abba239d041e75675daf4"
+                  },
+                  {
+                      "path":  "diagrams/diag_river_terrace_ans.png",
+                      "size":  99612,
+                      "sha256":  "a4d94eaf841c92c41d264d513f637b0ff2dc7e362c8999667aeabd4f5fe1c4cd"
+                  },
+                  {
+                      "path":  "diagrams/diag_river_terrace_quiz.png",
+                      "size":  85459,
+                      "sha256":  "5f41b899be34c018d11f62bc70dcbda18fdf58393d1bd9e51701c9a61a821739"
+                  },
+                  {
+                      "path":  "diagrams/diag_rock_cycle_ans.png",
+                      "size":  98470,
+                      "sha256":  "e67508b86abc22231df4ca69a84b561edb38e7ef7e03561ac145f3d945d7f18b"
+                  },
+                  {
+                      "path":  "diagrams/diag_rock_cycle_clean.png",
+                      "size":  36970,
+                      "sha256":  "4511f8567c79cbb064520ea5de19bc1b675b5ff358cc0ffbc44706d06f54a80c"
+                  },
+                  {
+                      "path":  "diagrams/diag_rock_cycle_quiz.png",
+                      "size":  77014,
+                      "sha256":  "13a4d180e4af5a55f0a8d124e7ab77042ef137e46e8116019242fabfbb68b8e4"
+                  },
+                  {
+                      "path":  "diagrams/diag_sun_path_ans.png",
+                      "size":  95143,
+                      "sha256":  "032287f252c7731a41a340ecbfcdc8a751c8bbb7e57a7363ccf12c33784630a7"
+                  },
+                  {
+                      "path":  "diagrams/diag_sun_path_quiz.png",
+                      "size":  96107,
+                      "sha256":  "2011728a5eb08ce106a29adb30cfcea043ccb68c853c041a017ff24a55649c36"
+                  },
+                  {
+                      "path":  "diagrams/diag_unconformity_ans.png",
+                      "size":  111153,
+                      "sha256":  "ad287228d8dc6111bf60ec032dfb8507de4569767645f333a83122ccfe1c62f7"
+                  },
+                  {
+                      "path":  "diagrams/diag_unconformity_quiz.png",
+                      "size":  95539,
+                      "sha256":  "342f50e3c61ce2707c46824c361ec9f5f794f446cfa1a0e404a2f5f1b0625e72"
+                  },
+                  {
+                      "path":  "diagrams/diag_vertical_zones_ans.png",
+                      "size":  120219,
+                      "sha256":  "89b0be7d9353065b9b2dd90c8eb9c821d1cdd53e99971a742986a2c6c3360436"
+                  },
+                  {
+                      "path":  "diagrams/diag_vertical_zones_quiz.png",
+                      "size":  103459,
+                      "sha256":  "bef55c19f04adfd1e96d853bdf3bc86dfdabcb7800ea0be20b670bbdc38281fa"
+                  },
+                  {
+                      "path":  "diagrams/map_atlantic_ans.png",
+                      "size":  327043,
+                      "sha256":  "f19c7b8127b7a87c0e3c738d26e73aa42f95b7552a403c8ec709faf41b3526f9"
+                  },
+                  {
+                      "path":  "diagrams/map_atlantic_clean.png",
+                      "size":  231519,
+                      "sha256":  "111e257547332760aab40ee3c1e1cb0bbec67bedbcfc003147a4c5c1f7b97097"
+                  },
+                  {
+                      "path":  "diagrams/map_atlantic_quiz.png",
+                      "size":  264913,
+                      "sha256":  "01c79c68946dd060db0833606337e514d4d1a60942e6853f1a08ef2ddd99b32d"
+                  },
+                  {
+                      "path":  "diagrams/map_china_terrain_ans.png",
+                      "size":  155470,
+                      "sha256":  "eaf84bbfb760fd189628547da7dc05875928694835c3b4f16e0bfcba7928901c"
+                  },
+                  {
+                      "path":  "diagrams/map_china_terrain_clean.png",
+                      "size":  102950,
+                      "sha256":  "25f7822743200530102f3c00134b8c4624bd10f9d56532e5151cadfa1fe31362"
+                  },
+                  {
+                      "path":  "diagrams/map_china_terrain_quiz.png",
+                      "size":  136480,
+                      "sha256":  "c58c1e2ce808b44e95392a90e9fce4ebe1ca2e3d8196bcf9a88de7f6cd613f52"
+                  },
+                  {
+                      "path":  "diagrams/map_indian_ans.png",
+                      "size":  244885,
+                      "sha256":  "bc966dae090609598f5f9069a771e8af67c34a61c32f13afb615f63906ed270a"
+                  },
+                  {
+                      "path":  "diagrams/map_indian_clean.png",
+                      "size":  174578,
+                      "sha256":  "c45d6e79b4fa156737e36b74797cf73d3cacd7298a1cdedae22454f0f98c8a0f"
+                  },
+                  {
+                      "path":  "diagrams/map_indian_quiz.png",
+                      "size":  193611,
+                      "sha256":  "d21d3c1522a20fb93c4f6e49bf11751f46004ee0bc53749ccc555708cadfd72e"
+                  },
+                  {
+                      "path":  "diagrams/map_pacific_ans.png",
+                      "size":  278423,
+                      "sha256":  "79e00a7c6995876232d806ade38a8e3693140279e7b1a976b8443ce80169e0f6"
+                  },
+                  {
+                      "path":  "diagrams/map_pacific_clean.png",
+                      "size":  180614,
+                      "sha256":  "fd778194c8c2c4fcd2f7791e0e240b20d822785c2e17c576c9518be9b9e3ec75"
+                  },
+                  {
+                      "path":  "diagrams/map_pacific_quiz.png",
+                      "size":  216051,
+                      "sha256":  "7f608ccfe8c43ed5bb319c694c5cab67cd8284ae1d14015386488ac4b49ad7d6"
+                  }
+              ]
+}
