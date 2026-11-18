@@ -1,5 +1,6 @@
 ﻿param(
-    [string]$Mode = "Daemon" # Daemon | LaunchNow | CheckOnce | Install | Uninstall
+    [string]$Mode = "Daemon", # Daemon | LaunchNow | CheckOnce | Install | Uninstall
+    [switch]$HotReload
 )
 
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Definition
@@ -21,6 +22,14 @@ public static class IdleWin32 {
     public static extern IntPtr GetForegroundWindow();
     [DllImport("user32.dll")]
     public static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint lpdwProcessId);
+    [DllImport("kernel32.dll")]
+    static extern ulong GetTickCount64();
+    [DllImport("kernel32.dll")]
+    static extern uint SetThreadExecutionState(uint esFlags);
+    [DllImport("user32.dll")]
+    static extern IntPtr PostMessage(IntPtr hWnd, uint Msg, IntPtr wParam, IntPtr lParam);
+    [DllImport("user32.dll")]
+    static extern void mouse_event(uint dwFlags, int dx, int dy, uint dwData, UIntPtr dwExtraInfo);
 
     public static double GetIdleSeconds() {
         LASTINPUTINFO lii = new LASTINPUTINFO();
@@ -29,8 +38,30 @@ public static class IdleWin32 {
         uint diff = unchecked((uint)Environment.TickCount - lii.dwTime);
         return diff / 1000.0;
     }
+    public static double GetUptimeSeconds() {
+        return GetTickCount64() / 1000.0;
+    }
+    public static void KeepSystemAwake() {
+        // 阻止一体机在早自习/第1节课后因无人触控而自动进入Windows睡眠/休眠假关机
+        SetThreadExecutionState(0x80000001);
+    }
+    public static void WakeDisplayNow() {
+        // 强制唤醒息屏/省电黑屏状态的显示器面板
+        SetThreadExecutionState(0x80000003);
+        PostMessage((IntPtr)0xFFFF, 0x0112, (IntPtr)0xF170, (IntPtr)(-1));
+        mouse_event(0x0001, 0, 1, 0, UIntPtr.Zero);
+        mouse_event(0x0001, 0, -1, 0, UIntPtr.Zero);
+    }
 }
 "@
+
+function Ensure-BoardNeverSleeps {
+    try {
+        [IdleWin32]::KeepSystemAwake()
+        & powercfg.exe /change standby-timeout-ac 0 *> $null
+        & powercfg.exe /change hibernate-timeout-ac 0 *> $null
+    } catch {}
+}
 
 function Get-BrowserExe {
     $candidates = @(
@@ -70,6 +101,7 @@ function Get-WeekParity([datetime]$dt, $cfg) {
 }
 
 function Open-BoardApp([string]$ClsCode, [string]$TargetTime = "", [int]$OffsetMin = 0) {
+    try { [IdleWin32]::WakeDisplayNow() } catch {}
     $exe = Get-BrowserExe
     $qs = "?class=$ClsCode&stage=prep&offset=$OffsetMin"
     if ($TargetTime -ne "") { $qs += "&target=$TargetTime" }
@@ -176,9 +208,11 @@ if ($Mode -eq "Install") {
 
     Start-Process powershell.exe -ArgumentList "-NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File `"$PSCommandPath`" -Mode Daemon"
     $pLabel = if ($cfg.anchor_week_parity -eq "odd") { "单周" } else { "双周" }
+    Ensure-BoardNeverSleeps
     Write-Host ""
     Write-Host "✅ 部署成功！已绑定【高三 ${cls}班】（本周设为：$pLabel，下周一自动轮换）。" -ForegroundColor Green
-    Write-Host "✅ 桌面已生成【地理课前通关(${cls}班)】与【一键同步更新】图标，开机防拖堂值守与自动热更新已生效！" -ForegroundColor Green
+    Write-Host "✅ 已开启【防睡眠常驻 + 息屏自动点亮 + 课前晚开机进桌面秒弹】保护！" -ForegroundColor Green
+    Write-Host "💡 强烈建议顺手在黑板侧边栏【设置 -> 定时开关机】设每天 06:50 自动开机进内置电脑！" -ForegroundColor Yellow
     Start-Sleep -Seconds 3
     exit 0
 }
@@ -224,7 +258,7 @@ function Invoke-SilentAutoSync([string]$LanUrl = "") {
         $resStr = ($res | Select-Object -Last 1) -as [string]
         if ($resStr -like "UPDATED_DAEMON*") {
             if ($UdpListener) { try { $UdpListener.Close() } catch {} }
-            Start-Process powershell.exe -ArgumentList "-NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File `"$PSCommandPath`" -Mode Daemon"
+            Start-Process powershell.exe -ArgumentList "-NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File `"$PSCommandPath`" -Mode Daemon -HotReload"
             exit 0
         }
         return $resStr
@@ -234,14 +268,28 @@ function Invoke-SilentAutoSync([string]$LanUrl = "") {
 $triggeredKey = ""
 $lastCloudSync = (Get-Date).AddSeconds(-170) # 启动约10秒后自动执行首次云端检查，此后每3分钟静默检查一次
 $lastLanVer = ""
+$DaemonStartTime = Get-Date
+$lastLoopWall = Get-Date
+$lastWakeTime = [datetime]::MinValue
+Ensure-BoardNeverSleeps
 
 while ($true) {
     try {
+        [IdleWin32]::KeepSystemAwake()
+        $curWall = Get-Date
+        if (($curWall - $lastLoopWall).TotalSeconds -ge 35) {
+            # 检测到系统刚从睡眠/休眠/快速启动挂起态唤醒！
+            $lastWakeTime = $curWall
+        }
+        $lastLoopWall = $curWall
+
         $cfg = Get-Content $CfgPath -Raw -Encoding UTF8 | ConvertFrom-Json
         $cls = [string]$cfg.current_blackboard_class
         $offset = [int]$cfg.clock_offset_minutes
         $leadMin = [int]$cfg.trigger_before_minutes
         $reqIdle = [int]$cfg.idle_required_seconds
+        $uptimeSec = [IdleWin32]::GetUptimeSeconds()
+        $isFreshBoot = ($uptimeSec -le 180.0) -or ((-not $HotReload) -and (($curWall - $DaemonStartTime).TotalSeconds -le 180.0)) -or (($curWall - $lastWakeTime).TotalSeconds -le 180.0)
 
         $now = (Get-Date).AddMinutes($offset)
         $wp = Get-WeekParity $now $cfg
@@ -257,15 +305,23 @@ while ($true) {
                 $minsToClass = ($targetTime - $now).TotalMinutes
                 $slotKey = "$($now.ToString('yyyyMMdd'))_${cls}_$slotTimeStr"
 
-                # 早自习07:00允许开机稍晚(06:55~07:04)补弹；其余时段严格在课前5分钟~铃响前0.5分钟空闲弹出
-                $minBound = if ($slotTimeStr -eq "07:00") { -4.0 } else { 0.5 }
+                $fg = Get-ForegroundAppName
+                $teachingApps = @("POWERPNT", "wpp", "EasiNote", "HiteBoard")
 
+                # 场景A【晚开机秒弹补救】：若黑板之前关着机，课前8分钟~上课后5分钟内刚按电源开机(Uptime<=180s)，无需等90秒空闲，进桌面立即弹出！
+                if ($isFreshBoot -and $minsToClass -le ([math]::Max($leadMin, 8)) -and $minsToClass -ge -5.0 -and $triggeredKey -ne $slotKey) {
+                    if ($fg -notin $teachingApps) {
+                        Open-BoardApp $cls $slotTimeStr $offset
+                        $triggeredKey = $slotKey
+                        continue
+                    }
+                }
+
+                # 场景B【正常提前开机值守】：早自习07:00允许(-5分钟)补弹；其余时段课前5分钟~上课后1分钟内检测空闲防拖堂弹出
+                $minBound = if ($slotTimeStr -eq "07:00") { -5.0 } else { -1.0 }
                 if ($minsToClass -le $leadMin -and $minsToClass -ge $minBound -and $triggeredKey -ne $slotKey) {
                     $idleSec = [IdleWin32]::GetIdleSeconds()
-                    $fg = Get-ForegroundAppName
-                    $teachingApps = @("POWERPNT", "wpp", "EasiNote", "HiteBoard")
                     $needIdle = if ($fg -in $teachingApps) { [math]::Max($reqIdle, 120) } else { $reqIdle }
-                    # 早自习07:00刚开机无需漫长等待空闲，20秒无触控即弹出
                     if ($slotTimeStr -eq "07:00") { $needIdle = 20 }
 
                     if ($idleSec -ge $needIdle) {

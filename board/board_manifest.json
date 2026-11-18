@@ -1,12 +1,12 @@
 {
-    "build_version":  "20261118.123917",
-    "published_at":  "2026-11-18 12:39:17",
+    "build_version":  "20261118.140204",
+    "published_at":  "2026-11-18 14:02:05",
     "episode_count":  28,
     "files":  [
                   {
                       "path":  "geo_bank_data.js",
                       "size":  80239,
-                      "sha256":  "3efe31b1b603bc29372a09695447e0a1af0dd552340bd9e789244dd23199b148"
+                      "sha256":  "9f86c01623ecc5428466d69df4e1cf377b3442b7f291eb32659bccb1bee2784f"
                   },
                   {
                       "path":  "geo_maps.js",
@@ -15,8 +15,8 @@
                   },
                   {
                       "path":  "guard_daemon.ps1",
-                      "size":  14974,
-                      "sha256":  "50a022a09cb51e9368b4fcd53aab1d86c8a040a08603c242329e8da47b71d2c6"
+                      "size":  17698,
+                      "sha256":  "43a4cdaaec06fb8a484cf51ce61e3f54fe14dac929bd773a6431ebe3ffc1da6c"
                   },
                   {
                       "path":  "schedule_template.json",
@@ -25,8 +25,8 @@
                   },
                   {
                       "path":  "sync_updater.ps1",
-                      "size":  10089,
-                      "sha256":  "abb20abc119a0a2bb591ebcb0a1858403a2c4b3148061f432f7a829ff1644ed8"
+                      "size":  10100,
+                      "sha256":  "5aba8d8179327a7479c1f40d7bd6821a9443ef7cc6fc0ad9c7850ab410cc8036"
                   },
                   {
                       "path":  "一键停止自动弹窗.bat",

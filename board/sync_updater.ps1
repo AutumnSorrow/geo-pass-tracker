@@ -211,7 +211,7 @@ if ($Interactive -and $DaemonUpdated -and $HasInstalled) {
     Get-CimInstance Win32_Process -Filter "Name = 'powershell.exe'" | Where-Object {
         $_.ProcessId -ne $PID -and $_.CommandLine -match 'guard_daemon\.ps1"\s+-Mode\s+Daemon'
     } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
-    Start-Process powershell.exe -ArgumentList "-NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File `"$DaemonPs1`" -Mode Daemon"
+    Start-Process powershell.exe -ArgumentList "-NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File `"$DaemonPs1`" -Mode Daemon -HotReload"
     Write-Log "🔄 已自动平滑重启新版后台值守进程！" "Green"
 }
 
