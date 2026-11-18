@@ -1,12 +1,12 @@
 {
-    "build_version":  "20261118.095405",
-    "published_at":  "2026-11-18 09:54:06",
+    "build_version":  "20261118.123917",
+    "published_at":  "2026-11-18 12:39:17",
     "episode_count":  28,
     "files":  [
                   {
                       "path":  "geo_bank_data.js",
                       "size":  80239,
-                      "sha256":  "5dca4942c148bced758892c8a98d9aa0a1bfe2ff5199fa7cfd2139d7810d93da"
+                      "sha256":  "3efe31b1b603bc29372a09695447e0a1af0dd552340bd9e789244dd23199b148"
                   },
                   {
                       "path":  "geo_maps.js",
@@ -15,8 +15,8 @@
                   },
                   {
                       "path":  "guard_daemon.ps1",
-                      "size":  14684,
-                      "sha256":  "ff0c91fb4e662cb15ea45ac98b1b81b360ef664bc8b2bd943d63b6063b9b6300"
+                      "size":  14974,
+                      "sha256":  "50a022a09cb51e9368b4fcd53aab1d86c8a040a08603c242329e8da47b71d2c6"
                   },
                   {
                       "path":  "schedule_template.json",

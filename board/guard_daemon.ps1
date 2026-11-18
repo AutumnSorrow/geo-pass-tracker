@@ -233,6 +233,7 @@ function Invoke-SilentAutoSync([string]$LanUrl = "") {
 
 $triggeredKey = ""
 $lastCloudSync = (Get-Date).AddSeconds(-170) # 启动约10秒后自动执行首次云端检查，此后每3分钟静默检查一次
+$lastLanVer = ""
 
 while ($true) {
     try {
@@ -291,8 +292,13 @@ while ($true) {
                 $msg = [System.Text.Encoding]::UTF8.GetString($pkt)
                 if ($msg -match '^GEO_SYNC\|([^|]*)\|([^|]*)\|(\d+)$') {
                     $lanUrl = $Matches[1]
+                    $targetVer = $Matches[2]
                     $ackPort = [int]$Matches[3]
-                    $syncRes = Invoke-SilentAutoSync $lanUrl
+                    $syncRes = if ($targetVer -and $targetVer -eq $lastLanVer) { "UP_TO_DATE|$targetVer" } else {
+                        $r = Invoke-SilentAutoSync $lanUrl
+                        if ($r) { $lastLanVer = $targetVer }
+                        $r
+                    }
                     $ackMsg = "GEO_ACK|${cls}班|$env:COMPUTERNAME|$syncRes"
                     $ackBytes = [System.Text.Encoding]::UTF8.GetBytes($ackMsg)
                     $UdpListener.Send($ackBytes, $ackBytes.Length, $remoteEp.Address.ToString(), $ackPort) | Out-Null
