@@ -1,12 +1,17 @@
 {
-    "build_version":  "20261118.140204",
-    "published_at":  "2026-11-18 14:02:05",
+    "build_version":  "20261118.192137",
+    "published_at":  "2026-11-18 19:21:38",
     "episode_count":  28,
     "files":  [
                   {
+                      "path":  "board_control.json",
+                      "size":  219,
+                      "sha256":  "9e7390de7c99ee7f11543cb8b5acbf835595ae0b77b7165611a44b4f22442694"
+                  },
+                  {
                       "path":  "geo_bank_data.js",
                       "size":  80239,
-                      "sha256":  "9f86c01623ecc5428466d69df4e1cf377b3442b7f291eb32659bccb1bee2784f"
+                      "sha256":  "a837d372c8eb06d4da4b2e73a1132308aa3b554b07a3996aa296c2c809c3d68f"
                   },
                   {
                       "path":  "geo_maps.js",
@@ -15,8 +20,13 @@
                   },
                   {
                       "path":  "guard_daemon.ps1",
-                      "size":  17698,
-                      "sha256":  "43a4cdaaec06fb8a484cf51ce61e3f54fe14dac929bd773a6431ebe3ffc1da6c"
+                      "size":  30039,
+                      "sha256":  "b9943b37fa6a8affa8aad556568c07d0b755625c4a1a6765f25da8fc3dda943b"
+                  },
+                  {
+                      "path":  "guard_launcher.vbs",
+                      "size":  872,
+                      "sha256":  "ad8670e0742a75bd12749a1a22fe7ab71c6885ed797debeab011b0cb2a80c6e4"
                   },
                   {
                       "path":  "schedule_template.json",
@@ -25,8 +35,8 @@
                   },
                   {
                       "path":  "sync_updater.ps1",
-                      "size":  10100,
-                      "sha256":  "5aba8d8179327a7479c1f40d7bd6821a9443ef7cc6fc0ad9c7850ab410cc8036"
+                      "size":  12356,
+                      "sha256":  "7e3bd91e6a5623b6b21c94aa091ede6e2d1c77f28e44b02225bb788a56097b34"
                   },
                   {
                       "path":  "一键停止自动弹窗.bat",
@@ -45,13 +55,13 @@
                   },
                   {
                       "path":  "地理课前通关大屏.html",
-                      "size":  54201,
-                      "sha256":  "c2ecbc1dca0d1ee9b2afb11898f328b1030fe2e7e27fa7a409d847eb2eeef87f"
+                      "size":  65041,
+                      "sha256":  "e0fa54625686d67543f96b711d50644bea57362b4045dc4bcd80a37767fe402e"
                   },
                   {
                       "path":  "立即手动打开大屏.bat",
-                      "size":  137,
-                      "sha256":  "60d33cf490dd345dc46cb0743e24aff01ae40a8f7d3d0cc216cc199e03908c1a"
+                      "size":  252,
+                      "sha256":  "5361929e0e7816d5f131e78523f88afd0314ac26243c91ede550e1b614abcc14"
                   },
                   {
                       "path":  "diagrams/diag_alluvial_fan_ans.png",

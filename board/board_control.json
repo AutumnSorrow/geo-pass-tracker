@@ -1,0 +1,15 @@
+{
+  "updated_at": 0,
+  "classes": {
+    "10": {
+      "cmd_ts": 0,
+      "pause_until_ms": 0,
+      "pause_label": ""
+    },
+    "11": {
+      "cmd_ts": 0,
+      "pause_until_ms": 0,
+      "pause_label": ""
+    }
+  }
+}

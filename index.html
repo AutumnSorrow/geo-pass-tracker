@@ -37,6 +37,30 @@
     font-size: 13px; font-weight: 700; padding: 6px 12px; border-radius: 20px;
     background: var(--card2); border: 1px solid var(--border); cursor: pointer; display: flex; align-items: center; gap: 6px;
   }
+  /* 教室黑板实时联网状态与远程考试免打扰栏 */
+  .board-bar {
+    display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap;
+    padding: 8px 12px; background: #0E1930; border: 1px solid var(--border); border-radius: 12px; margin-bottom: 12px;
+  }
+  .board-pills { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; flex: 1; min-width: 0; }
+  .b-pill {
+    display: inline-flex; align-items: center; gap: 6px; padding: 5px 10px; border-radius: 20px;
+    background: #081020; border: 1px solid #243B67; font-size: 12.5px; font-weight: 800; color: #CBD5E1; cursor: pointer;
+  }
+  .b-pill.is-online { border-color: rgba(16,185,129,0.55); background: rgba(16,185,129,0.12); color: #ECFDF5; }
+  .b-pill.is-paused { border-color: rgba(245,158,11,0.65); background: rgba(245,158,11,0.15); color: #FEF3C7; }
+  .b-dot { width: 8px; height: 8px; border-radius: 50%; background: #64748B; flex-shrink: 0; }
+  .b-dot.online { background: #10B981; box-shadow: 0 0 8px #10B981; }
+  .b-dot.paused { background: #F59E0B; box-shadow: 0 0 8px #F59E0B; }
+  .b-ctl-btn {
+    padding: 6px 12px; border-radius: 9px; border: 1px solid rgba(250,204,21,0.5);
+    background: rgba(250,204,21,0.14); color: var(--gold); font-size: 12.5px; font-weight: 800; cursor: pointer; white-space: nowrap;
+  }
+  .ctl-chip {
+    padding: 8px 12px; border-radius: 9px; border: 1px solid var(--border); background: var(--card2);
+    color: #F8FAFC; font-size: 13px; font-weight: 800; cursor: pointer;
+  }
+  .ctl-chip:active { transform: scale(0.97); }
   /* Episode Bar */
   .ep-bar {
     background: var(--card); border: 1px solid var(--border); border-radius: 14px;
@@ -137,6 +161,20 @@
     </div>
   </header>
 
+  <div class="board-bar" id="board-status-bar">
+    <div class="board-pills">
+      <div class="b-pill" id="bp-10" onclick="openBoardCtlModal('10')" title="点击查看10班黑板详情或远程开关自动弹窗">
+        <span class="b-dot" id="bdot-10"></span>
+        <span id="btxt-10">10班黑板: 检测中...</span>
+      </div>
+      <div class="b-pill" id="bp-11" onclick="openBoardCtlModal('11')" title="点击查看11班黑板详情或远程开关自动弹窗">
+        <span class="b-dot" id="bdot-11"></span>
+        <span id="btxt-11">11班黑板: 检测中...</span>
+      </div>
+    </div>
+    <button class="b-ctl-btn" onclick="openBoardCtlModal('all')">🛡️ 考试免打扰</button>
+  </div>
+
   <div id="view-root"></div>
 </div>
 
@@ -171,6 +209,45 @@
     <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:12px;">
       <button class="btn" onclick="document.getElementById('roster-modal').style.display='none'">取消</button>
       <button class="btn btn-green" onclick="saveRoster()">💾 保存名单并同步云端</button>
+    </div>
+  </div>
+</div>
+
+<!-- 教室黑板在线监控 & 远程考试免打扰控制弹窗 -->
+<div class="modal" id="board-ctl-modal">
+  <div class="modal-inner">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+      <h3 style="color:var(--gold);font-size:18px;">📡 教室黑板在线监控 & 远程考试免打扰</h3>
+      <button class="btn" style="padding:4px 10px;font-size:12.5px;" onclick="fetchBoardHeartbeats(true)">🔄 刷新状态</button>
+    </div>
+    <div id="board-detail-cards" style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px;"></div>
+
+    <div style="background:#081020;border:1px solid var(--border);border-radius:12px;padding:12px;">
+      <div style="font-size:14px;font-weight:800;color:var(--gold);margin-bottom:8px;">🛡️ 远程设定【考试免打扰】（期间不自动弹窗，到期自动恢复！）</div>
+      <label style="font-size:12.5px;color:var(--muted);">选择控制的教室黑板：</label>
+      <select class="inp" id="ctl-target-cls" style="margin-bottom:10px;font-weight:800;">
+        <option value="all">🏫 全部教室（高三 10班 + 高三 11班）</option>
+        <option value="10">📍 仅 高三 10班 黑板</option>
+        <option value="11">📍 仅 高三 11班 黑板</option>
+      </select>
+      <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px;">
+        <button class="ctl-chip" onclick="sendQuickBoardPause(0)">🔇 今天暂停</button>
+        <button class="ctl-chip" onclick="sendQuickBoardPause(2)">📝 暂停 2 天</button>
+        <button class="ctl-chip" onclick="sendQuickBoardPause(3)">📝 暂停 3 天(月考/期中)</button>
+        <button class="ctl-chip" onclick="sendQuickBoardPause(5)">📝 暂停 5 天</button>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:12px;">
+        <span style="font-size:12.5px;color:var(--muted);">📅 或指定恢复时间：</span>
+        <input type="datetime-local" id="ctl-custom-dt" class="inp" style="width:auto;margin-top:0;padding:6px 10px;font-size:13px;">
+        <button class="ctl-chip" style="border-color:var(--gold);color:var(--gold);" onclick="sendCustomBoardPause()">设定免打扰</button>
+      </div>
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding-top:10px;border-top:1px dashed var(--border);flex-wrap:wrap;">
+        <button class="btn btn-green" style="padding:8px 14px;font-size:13.5px;" onclick="sendRemoteBoardControl(0, '')">🟢 立即恢复自动弹窗</button>
+        <span id="ctl-send-hint" style="font-size:12px;color:var(--muted);">免跑教室 · 4G/WiFi直达</span>
+      </div>
+    </div>
+    <div style="display:flex;justify-content:flex-end;margin-top:12px;">
+      <button class="btn" onclick="document.getElementById('board-ctl-modal').style.display='none'">关闭</button>
     </div>
   </div>
 </div>
@@ -730,6 +807,231 @@ function exportSchoolExcel() {
   a.click();
 }
 
+// ==================== 教室黑板联网在线监控 & 远程考试免打扰控制 ====================
+const HB_TOPIC = "qy_geo_hb_9f4a2c8e71b6d305";
+const CTL_TOPIC = "qy_geo_ctl_7d3e91a5c84b20f6";
+const ONLINE_TTL_MS = 390 * 1000; // 6.5分钟内有心跳视为实时在线
+let boardHbMap = JSON.parse(localStorage.getItem("geo_board_hb_v1") || '{"10":null,"11":null}');
+let remoteCtlCache = JSON.parse(localStorage.getItem("geo_board_ctl_v1") || '{"updated_at":0,"classes":{"10":{"cmd_ts":0,"pause_until_ms":0,"pause_label":""},"11":{"cmd_ts":0,"pause_until_ms":0,"pause_label":""}}}');
+
+function fmtShortTime(ms) {
+  if (!ms) return "";
+  const d = new Date(ms), now = new Date();
+  const pad = n => String(n).padStart(2, "0");
+  const hm = `${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  return d.toDateString() === now.toDateString() ? hm : `${d.getMonth()+1}/${d.getDate()} ${hm}`;
+}
+function fmtPauseLabel(ms) {
+  const d = new Date(ms), pad = n => String(n).padStart(2, "0");
+  return `${d.getMonth()+1}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+function getEffectivePause(cCode) {
+  const hb = boardHbMap[cCode];
+  const ctl = (remoteCtlCache.classes && remoteCtlCache.classes[cCode]) || null;
+  if (ctl && (!hb || ctl.cmd_ts > (hb.ts || 0))) {
+    return { untilMs: ctl.pause_until_ms || 0, label: ctl.pause_label || "" };
+  }
+  if (hb) return { untilMs: hb.pauseUntilMs || 0, label: hb.pauseLabel || "" };
+  return { untilMs: 0, label: "" };
+}
+
+function renderBoardStatusUI() {
+  const now = Date.now();
+  ["10", "11"].forEach(c => {
+    const pill = document.getElementById("bp-" + c);
+    const dot = document.getElementById("bdot-" + c);
+    const txt = document.getElementById("btxt-" + c);
+    if (!pill || !dot || !txt) return;
+    const hb = boardHbMap[c];
+    const isOnline = !!(hb && hb.ts && (now - hb.ts) <= ONLINE_TTL_MS);
+    const eff = getEffectivePause(c);
+    const isPaused = eff.untilMs > now;
+
+    pill.className = "b-pill" + (isPaused ? " is-paused" : (isOnline ? " is-online" : ""));
+    dot.className = "b-dot" + (isPaused ? " paused" : (isOnline ? " online" : ""));
+
+    if (isOnline) {
+      const epStr = hb.ep ? ` · 第${hb.ep}期` : "";
+      txt.textContent = isPaused ? `${c}班 在线 · 免打扰至${eff.label}` : `${c}班 在线${epStr}`;
+    } else {
+      const lastStr = (hb && hb.ts) ? `(${fmtShortTime(hb.ts)}离)` : "离线";
+      const shortLbl = (eff.label || "").split(" ")[0] || eff.label;
+      txt.textContent = isPaused ? `${c}班 ${lastStr} · 免打扰至${shortLbl}` : `${c}班黑板 ${lastStr}`;
+    }
+  });
+
+  const cardsBox = document.getElementById("board-detail-cards");
+  if (cardsBox && document.getElementById("board-ctl-modal").style.display === "flex") {
+    cardsBox.innerHTML = ["10", "11"].map(c => {
+      const hb = boardHbMap[c];
+      const isOnline = !!(hb && hb.ts && (now - hb.ts) <= ONLINE_TTL_MS);
+      const eff = getEffectivePause(c);
+      const isPaused = eff.untilMs > now;
+      const stBadge = isOnline
+        ? `<span style="color:#6EE7B7;font-size:12.5px;font-weight:900;white-space:nowrap;">🟢 在线</span>`
+        : `<span style="color:#94A3B8;font-size:12.5px;font-weight:800;white-space:nowrap;">⚪ 离线</span>`;
+      const dndLine = isPaused
+        ? `<div style="margin-top:6px;font-size:11.5px;color:#FDE68A;background:rgba(245,158,11,0.18);padding:3px 7px;border-radius:6px;">⏸ 免打扰至 ${eff.label}</div>`
+        : `<div style="margin-top:6px;font-size:11.5px;color:#6EE7B7;">🛡️ 自动弹窗：正常开启</div>`;
+      return `<div style="background:#081020;border:1px solid ${isOnline?'rgba(16,185,129,0.45)':'var(--border)'};border-radius:10px;padding:10px;min-width:0;">
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:4px;margin-bottom:5px;white-space:nowrap;">
+          <b style="font-size:14.5px;color:#FFF;">高三 ${c}班</b>${stBadge}
+        </div>
+        <div style="font-size:12px;color:var(--muted);white-space:nowrap;">进度：${hb&&hb.ep ? `第 ${hb.ep} 期` : '暂无记录'} ${hb&&hb.ep ? `<a href="javascript:void(0)" style="color:var(--gold);margin-left:3px;" onclick="jumpToBoardEp('${c}班',${hb.ep})">[打勾]</a>` : ''}</div>
+        <div style="font-size:11.5px;color:var(--muted);margin-top:2px;white-space:nowrap;">心跳：${hb&&hb.ts ? fmtShortTime(hb.ts) : '未开机/离线'}</div>
+        ${dndLine}
+      </div>`;
+    }).join("");
+  }
+}
+
+function jumpToBoardEp(clsName, epNum) {
+  ui.cls = clsName;
+  ui.epId = Math.max(1, Math.min(BANK.length || 99, Number(epNum) || 1));
+  ui.tab = "check";
+  document.getElementById("board-ctl-modal").style.display = "none";
+  render();
+}
+
+function ingestHbObject(obj) {
+  if (!obj || !obj.clsCode) return;
+  const c = String(obj.clsCode);
+  if (c !== "10" && c !== "11") return;
+  if (!boardHbMap[c] || (obj.ts || 0) >= (boardHbMap[c].ts || 0)) {
+    boardHbMap[c] = obj;
+    localStorage.setItem("geo_board_hb_v1", JSON.stringify(boardHbMap));
+  }
+}
+
+async function fetchBoardHeartbeats(manual) {
+  try {
+    const [hbRes, ctlRes] = await Promise.all([
+      fetch(`https://ntfy.sh/${HB_TOPIC}/json?poll=1&since=12h`, { cache: "no-store" }),
+      fetch(`https://ntfy.sh/${CTL_TOPIC}/json?poll=1&since=12h`, { cache: "no-store" })
+    ]);
+    if (hbRes.ok) {
+      const txt = await hbRes.text();
+      txt.split(/\r?\n/).forEach(line => {
+        if (!line.trim()) return;
+        try {
+          const ev = JSON.parse(line);
+          if (ev.event === "message" && ev.message) ingestHbObject(JSON.parse(ev.message));
+        } catch (_) {}
+      });
+    }
+    if (ctlRes.ok) {
+      const cTxt = await ctlRes.text();
+      cTxt.split(/\r?\n/).forEach(line => {
+        if (!line.trim()) return;
+        try {
+          const ev = JSON.parse(line);
+          if (ev.event === "message" && ev.message) {
+            const cObj = JSON.parse(ev.message);
+            if (cObj && (cObj.updated_at || 0) > (remoteCtlCache.updated_at || 0)) {
+              remoteCtlCache = cObj;
+              localStorage.setItem("geo_board_ctl_v1", JSON.stringify(remoteCtlCache));
+            }
+          }
+        } catch (_) {}
+      });
+    }
+  } catch (_) {}
+  renderBoardStatusUI();
+}
+
+function startLiveHeartbeatStream() {
+  try {
+    if (!window.EventSource) return;
+    const es = new EventSource(`https://ntfy.sh/${HB_TOPIC}/sse`);
+    es.onmessage = e => {
+      try {
+        const ev = JSON.parse(e.data);
+        if (ev && ev.message) { ingestHbObject(JSON.parse(ev.message)); renderBoardStatusUI(); }
+      } catch (_) {}
+    };
+  } catch (_) {}
+}
+
+function openBoardCtlModal(defaultTarget) {
+  const sel = document.getElementById("ctl-target-cls");
+  if (sel && defaultTarget) sel.value = defaultTarget;
+  const dtInp = document.getElementById("ctl-custom-dt");
+  if (dtInp && !dtInp.value) {
+    const d = new Date(Date.now() + 3 * 86400000);
+    d.setHours(18, 0, 0, 0);
+    const pad = n => String(n).padStart(2, "0");
+    dtInp.value = `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T18:00`;
+  }
+  document.getElementById("board-ctl-modal").style.display = "flex";
+  renderBoardStatusUI();
+  fetchBoardHeartbeats(false);
+}
+
+async function syncControlSnapshotToRepo(ctlObj) {
+  if (!cloudCfg.token) return;
+  try {
+    const apiUrl = "https://api.github.com/repos/AutumnSorrow/geo-pass-tracker/contents/board/board_control.json";
+    const headers = { "Authorization": `Bearer ${cloudCfg.token}`, "Accept": "application/vnd.github+json", "Content-Type": "application/json" };
+    let sha = undefined;
+    const getRes = await fetch(apiUrl, { headers });
+    if (getRes.ok) { const gd = await getRes.json(); sha = gd.sha; }
+    const contentB64 = btoa(unescape(encodeURIComponent(JSON.stringify(ctlObj, null, 2))));
+    await fetch(apiUrl, {
+      method: "PUT", headers,
+      body: JSON.stringify({ message: "remote board dnd control update", content: contentB64, sha })
+    });
+  } catch (_) {}
+}
+
+async function sendRemoteBoardControl(untilMs, label) {
+  const target = document.getElementById("ctl-target-cls").value;
+  const hint = document.getElementById("ctl-send-hint");
+  if (hint) { hint.textContent = "⏳ 正在下发指令..."; hint.style.color = "var(--gold)"; }
+  const nowTs = Date.now();
+  const nextClasses = Object.assign({
+    "10": { cmd_ts: 0, pause_until_ms: 0, pause_label: "" },
+    "11": { cmd_ts: 0, pause_until_ms: 0, pause_label: "" }
+  }, remoteCtlCache.classes || {});
+
+  const targets = target === "all" ? ["10", "11"] : [target];
+  targets.forEach(c => {
+    nextClasses[c] = { cmd_ts: nowTs, pause_until_ms: untilMs, pause_label: label };
+  });
+  const payload = { updated_at: nowTs, classes: nextClasses };
+
+  try {
+    const r = await fetch(`https://ntfy.sh/${CTL_TOPIC}`, { method: "POST", body: JSON.stringify(payload) });
+    if (!r.ok) throw new Error("网络发送异常");
+    remoteCtlCache = payload;
+    localStorage.setItem("geo_board_ctl_v1", JSON.stringify(remoteCtlCache));
+    renderBoardStatusUI();
+    syncControlSnapshotToRepo(payload);
+    if (hint) {
+      hint.style.color = "var(--green)";
+      hint.textContent = untilMs > nowTs ? `✅ 已设定免打扰至 ${label}（到期自动恢复）` : "✅ 已发送立即恢复自动弹窗指令！";
+    }
+  } catch (e) {
+    if (hint) { hint.style.color = "var(--red)"; hint.textContent = "❌ 发送失败，请检查手机/电脑网络"; }
+  }
+}
+
+function sendQuickBoardPause(days) {
+  const d = new Date();
+  if (days <= 0) d.setHours(23, 59, 0, 0);
+  else { d.setDate(d.getDate() + days); d.setHours(21, 30, 0, 0); }
+  const ms = d.getTime();
+  sendRemoteBoardControl(ms, fmtPauseLabel(ms));
+}
+
+function sendCustomBoardPause() {
+  const v = document.getElementById("ctl-custom-dt").value;
+  if (!v) { alert("请先选择恢复日期和时间"); return; }
+  const ms = new Date(v).getTime();
+  if (isNaN(ms) || ms <= Date.now()) { alert("请选择未来的时间点"); return; }
+  sendRemoteBoardControl(ms, fmtPauseLabel(ms));
+}
+
 // 支持 #gist=xxx&tk=xxx 手机扫码一键免输配对云端（配对后立即从地址栏擦除密钥保护安全！）
 if (location.hash && location.hash.includes("tk=")) {
   const hp = new URLSearchParams(location.hash.slice(1));
@@ -750,7 +1052,13 @@ if (dp === "check" || dp === "debt") {
   if (dp === "debt") { ui.tab = "debt"; ui.openCheats[`${cleanName(db.rosters["10班"][0])}_1`] = true; }
 }
 render();
-if (!dp) pullFromCloud(false);
+renderBoardStatusUI();
+if (!dp) {
+  pullFromCloud(false);
+  fetchBoardHeartbeats(false);
+  startLiveHeartbeatStream();
+  setInterval(() => fetchBoardHeartbeats(false), 45000);
+}
 </script>
 </body>
 </html>

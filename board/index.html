@@ -30,6 +30,26 @@
     background: transparent; border: none; border-radius: 6px; cursor: pointer; white-space: nowrap;
   }
   .class-btn.active { background: var(--blue); color: #FFF; }
+  .class-locked-badge {
+    display: inline-flex; align-items: center; gap: 5px; padding: 5px 13px; border-radius: 9px;
+    background: linear-gradient(135deg, #1E3A8A, #1D4ED8); border: 1.5px solid #60A5FA;
+    color: #FFFFFF; font-size: clamp(13px, 1.7vh, 16.5px); font-weight: 900; white-space: nowrap; flex-shrink: 0;
+  }
+  .pause-pill {
+    display: none; align-items: center; gap: 4px; padding: 5px 10px; border-radius: 8px; cursor: pointer;
+    background: rgba(245,158,11,0.22); border: 1.5px solid #FBBF24; color: #FDE68A;
+    font-size: clamp(12px, 1.55vh, 15px); font-weight: 800; white-space: nowrap;
+  }
+  .dnd-card {
+    background: #091326; border: 1.5px solid #2A4578; border-radius: 12px; padding: 12px 14px; margin-bottom: 14px;
+  }
+  .dnd-btns { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 9px; align-items: center; }
+  .dnd-chip {
+    padding: 6px 12px; border-radius: 8px; font-size: 13.5px; font-weight: 800; cursor: pointer;
+    background: #17284A; color: #E2E8F0; border: 1px solid #3B5998;
+  }
+  .dnd-chip:hover { border-color: var(--gold); color: #FFF; }
+  .dnd-chip.resume { background: var(--emerald); color: #052E16; border: none; }
   .ep-nav { display: flex; align-items: center; gap: 6px; min-width: 0; }
   .nav-btn {
     background: var(--panel-alt); color: var(--text); border: 1px solid var(--border);
@@ -184,9 +204,10 @@
 <body>
 <header class="topbar">
   <div class="brand">
-    <div class="class-switch">
-      <button class="class-btn active" id="btn-c10" onclick="switchClass('10班')">10班</button>
-      <button class="class-btn" id="btn-c11" onclick="switchClass('11班')">11班</button>
+    <div class="class-locked-badge" id="cls-locked-badge" style="display:none;">🏫 高三 10班</div>
+    <div class="class-switch" id="cls-switch-wrap">
+      <button class="class-btn active" id="btn-c10" onclick="confirmBindClass('10班')">锁定 10班</button>
+      <button class="class-btn" id="btn-c11" onclick="confirmBindClass('11班')">锁定 11班</button>
     </div>
     <div class="ep-nav">
       <button class="nav-btn" onclick="stepEp(-1)">◀ 上期</button>
@@ -195,6 +216,7 @@
     </div>
   </div>
   <div class="top-right">
+    <span class="pause-pill" id="pause-top-pill" onclick="openSettings()" title="当前处于考试免打扰期，点击可查看或立即恢复">⏸ 免打扰中</span>
     <button class="nav-btn auto-pill on" id="btn-autoflow" onclick="toggleAutoFlow()" title="开启后：到上课点响铃8秒自动进默写，旧题90秒自动切新题，默写结束停笔锁屏8秒自动亮标答">🤖 自动流转: 开</button>
     <div style="display:flex;align-items:center;gap:4px;background:#080E1C;padding:3px 6px;border-radius:8px;border:1px solid var(--border);">
       <button class="nav-btn" style="padding:3px 8px;" onclick="stepFont(-0.1)" title="调小字号">A-</button>
@@ -217,9 +239,38 @@
   <div class="zoom-tip">👆 轻触屏幕任意位置返回课堂界面</div>
 </div>
 
+<div class="modal-mask" id="first-cls-modal">
+  <div class="modal-box" style="max-width:480px;text-align:center;padding:28px 24px;">
+    <h2 style="font-size:23px;color:var(--gold);margin-bottom:10px;">🏫 请确认本教室所属班级</h2>
+    <p style="font-size:15px;color:#CBD5E1;line-height:1.6;margin-bottom:20px;">确认后顶栏将自动隐藏其他班级，防止课堂误触串班（日后如需更换教室，可在右上角「⚙️设置」底部改绑）。</p>
+    <div style="display:flex;gap:16px;justify-content:center;">
+      <button class="act-btn btn-primary" style="font-size:18px;padding:0 26px;height:52px;" onclick="confirmBindClass('10班')">📍 锁定为 高三 10班</button>
+      <button class="act-btn btn-sky" style="font-size:18px;padding:0 26px;height:52px;" onclick="confirmBindClass('11班')">📍 锁定为 高三 11班</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal-mask" id="settings-modal">
   <div class="modal-box">
-    <h2 style="font-size:20px;margin-bottom:12px;color:var(--gold);">⚙️ 铃声校准、单题分段时长与临时插播</h2>
+    <h2 style="font-size:20px;margin-bottom:12px;color:var(--gold);">⚙️ 考试免打扰、铃声校准与课堂设置</h2>
+    <div class="dnd-card">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;">
+        <span style="font-size:15px;font-weight:900;color:var(--gold);">🛡️ 课前自动弹窗开关（考试免打扰 · 到期自动恢复）</span>
+        <span id="dnd-status-txt" style="font-size:13px;font-weight:800;color:#6EE7B7;">🟢 当前正常开启课前值守</span>
+      </div>
+      <div class="dnd-btns">
+        <button class="dnd-chip" onclick="quickPauseDays(0)">🔇 今天不弹</button>
+        <button class="dnd-chip" onclick="quickPauseDays(2)">📝 暂停 2 天</button>
+        <button class="dnd-chip" onclick="quickPauseDays(3)">📝 暂停 3 天(月考/期中)</button>
+        <button class="dnd-chip" onclick="quickPauseDays(5)">📝 暂停 5 天</button>
+        <button class="dnd-chip resume" id="btn-dnd-resume" style="display:none;" onclick="applyBoardPause(0, '')">▶ 立即恢复自动弹窗</button>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center;margin-top:9px;flex-wrap:wrap;">
+        <span style="font-size:12.5px;color:var(--muted);">📅 或指定自动恢复时间：</span>
+        <input type="datetime-local" id="dnd-custom-dt" class="form-input" style="width:auto;padding:4px 9px;font-size:13px;">
+        <button class="dnd-chip" onclick="applyCustomPauseDt()">设定免打扰截止点</button>
+      </div>
+    </div>
     <div class="form-row" style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
       <div><label>广播铃声误差校准（分钟，快2填-2，慢3填3）：</label><input class="form-input" type="number" id="clock-offset" value="0"></div>
       <div><label>铃响/停笔安全缓冲秒数（默认 8 秒）：</label><input class="form-input" type="number" id="gate-sec" value="8"></div>
@@ -233,6 +284,13 @@
       <textarea class="form-area" id="new-prep" rows="2" placeholder="【课前准备屏】核心母法（用「」括起重点词自动高亮）" style="margin-bottom:6px;"></textarea>
       <textarea class="form-area" id="new-quiz" rows="2" placeholder="【课上闭卷默写屏】默写指令" style="margin-bottom:6px;"></textarea>
       <textarea class="form-area" id="new-ans" rows="2" placeholder="【标准答案】要点"></textarea>
+    </div>
+    <div class="form-row" style="display:flex;align-items:center;justify-content:space-between;background:#09101F;padding:8px 12px;border-radius:8px;border:1px dashed var(--border);">
+      <span style="font-size:13px;color:var(--muted);">🏫 本机绑定班级（更换教室时可改绑，顶栏已自动隐藏其他班级）：</span>
+      <select id="bind-cls-select" class="form-input" style="width:auto;padding:4px 10px;font-weight:800;color:var(--gold);">
+        <option value="10班">高三 10班</option>
+        <option value="11班">高三 11班</option>
+      </select>
     </div>
     <div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-top:14px;">
       <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
@@ -315,8 +373,16 @@ function toggleAutoFlow() {
 }
 
 let rawStage = params.get('stage') || 'prep';
+let isClsLocked = params.has('class') || params.get('locked') === '1' || localStorage.getItem('geo_cls_locked_v7') === '1';
+if (params.has('class')) {
+  const urlCls = params.get('class') === '11' || params.get('class') === '11班' ? '11班' : '10班';
+  localStorage.setItem('geo_cls_v5', urlCls);
+  localStorage.setItem('geo_cls_locked_v7', '1');
+}
+let dndState = JSON.parse(localStorage.getItem('geo_dnd_v7') || '{"pauseUntilMs":0,"pauseLabel":""}');
+
 let state = {
-  cls: params.get('class') === '11' ? '11班' : (localStorage.getItem('geo_cls_v5') || '10班'),
+  cls: params.has('class') ? ((params.get('class') === '11' || params.get('class') === '11班') ? '11班' : '10班') : (localStorage.getItem('geo_cls_v5') || '10班'),
   epIdx: 0,
   stage: rawStage === 'quiz' ? 'quiz_old' : rawStage,
   oldIdx: params.get('old') ? Math.max(0, parseInt(params.get('old'), 10) - 1) : null,
@@ -331,6 +397,81 @@ let state = {
 state.epIdx = params.get('ep') ? Math.max(0, Math.min(bank.length - 1, parseInt(params.get('ep'), 10) - 1)) : (progress[state.cls] || 0);
 if (state.epIdx === 0 && state.stage === 'quiz_old') state.stage = 'quiz_new';
 if (state.epIdx === 0 && state.ansView === 'old') state.ansView = 'new';
+
+async function callLocalDaemon(ep, bodyObj) {
+  try {
+    const ctrl = new AbortController();
+    const tid = setTimeout(() => ctrl.abort(), 450);
+    const r = await fetch('http://127.0.0.1:18768' + ep, {
+      method: bodyObj ? 'POST' : 'GET',
+      body: bodyObj ? JSON.stringify(bodyObj) : undefined,
+      signal: ctrl.signal
+    });
+    clearTimeout(tid);
+    if (r.ok) return await r.json();
+  } catch (_) {}
+  return null;
+}
+
+function syncTopClassAndDndUI() {
+  const badge = document.getElementById('cls-locked-badge');
+  const swWrap = document.getElementById('cls-switch-wrap');
+  const firstModal = document.getElementById('first-cls-modal');
+  if (isClsLocked) {
+    if (badge) { badge.style.display = 'inline-flex'; badge.textContent = `🏫 高三 ${state.cls}`; }
+    if (swWrap) swWrap.style.display = 'none';
+    if (firstModal) firstModal.style.display = 'none';
+  } else {
+    if (badge) badge.style.display = 'none';
+    if (swWrap) swWrap.style.display = 'flex';
+    const b10 = document.getElementById('btn-c10'), b11 = document.getElementById('btn-c11');
+    if (b10) b10.classList.toggle('active', state.cls === '10班');
+    if (b11) b11.classList.toggle('active', state.cls === '11班');
+  }
+
+  const isPaused = (dndState.pauseUntilMs || 0) > Date.now();
+  const topPill = document.getElementById('pause-top-pill');
+  if (topPill) {
+    topPill.style.display = isPaused ? 'inline-flex' : 'none';
+    if (isPaused) topPill.textContent = `⏸ 免打扰至 ${dndState.pauseLabel || '指定时间'}`;
+  }
+  const dndTxt = document.getElementById('dnd-status-txt');
+  const btnResume = document.getElementById('btn-dnd-resume');
+  if (dndTxt) {
+    dndTxt.style.color = isPaused ? '#FDE68A' : '#6EE7B7';
+    dndTxt.textContent = isPaused
+      ? `⏸ 考试免打扰中（暂停至 ${dndState.pauseLabel}，到期自动恢复）`
+      : '🟢 当前正常开启课前自动值守';
+  }
+  if (btnResume) btnResume.style.display = isPaused ? 'inline-block' : 'none';
+}
+
+async function pollLocalDaemonStatus(isInit) {
+  const res = await callLocalDaemon('/status');
+  if (res && res.ok) {
+    if (res.cls && (!params.has('class'))) {
+      const changedCls = state.cls !== res.cls;
+      state.cls = res.cls;
+      localStorage.setItem('geo_cls_v5', res.cls);
+      if (changedCls && isInit) {
+        state.epIdx = progress[state.cls] || 0;
+        resolvePrepTargetBell();
+      }
+    }
+    isClsLocked = true;
+    localStorage.setItem('geo_cls_locked_v7', '1');
+    dndState = { pauseUntilMs: Number(res.pauseUntilMs || 0), pauseLabel: String(res.pauseLabel || '') };
+    localStorage.setItem('geo_dnd_v7', JSON.stringify(dndState));
+    syncTopClassAndDndUI();
+    if (isInit) {
+      callLocalDaemon('/action', { type: 'sync_ep', ep: state.epIdx + 1 });
+      renderAll();
+    }
+  } else if (isInit && !isClsLocked) {
+    const fm = document.getElementById('first-cls-modal');
+    if (fm) fm.style.display = 'flex';
+  }
+}
 
 function resolvePrepTargetBell() {
   const nowCal = new Date(Date.now() + clockOffsetMin * 60000);
@@ -460,9 +601,7 @@ function fmtMMSS(sec) {
 }
 
 function renderAll() {
-  applyFontScale(); syncAutoBtn();
-  document.getElementById('btn-c10').classList.toggle('active', state.cls === '10班');
-  document.getElementById('btn-c11').classList.toggle('active', state.cls === '11班');
+  applyFontScale(); syncAutoBtn(); syncTopClassAndDndUI();
   document.getElementById('ep-select').innerHTML = bank.map((it, i) =>
     `<option value="${i}" ${i===state.epIdx?'selected':''}>第${String(it.id).padStart(2,'0')}期｜${it.module}：${it.target_weakness}</option>`
   ).join('');
@@ -643,20 +782,30 @@ function renderAll() {
       </div>`;
   }
 }
+function confirmBindClass(c) {
+  isClsLocked = true;
+  localStorage.setItem('geo_cls_locked_v7', '1');
+  switchClass(c);
+  callLocalDaemon('/action', { type: 'update_cfg', clsCode: c.replace('班', '') });
+  showSyncToast(`✅ 已锁定本黑板为【高三 ${c}】，其他班级已自动隐藏！`);
+}
 function switchClass(c) {
   state.cls = c; localStorage.setItem('geo_cls_v5', c);
   state.epIdx = progress[c] || 0; state.oldIdx = null; state.stage = 'prep';
   resolvePrepTargetBell(); renderAll();
+  callLocalDaemon('/action', { type: 'sync_ep', ep: state.epIdx + 1 });
 }
 function stepEp(d) {
   state.epIdx = Math.max(0, Math.min(bank.length - 1, state.epIdx + d));
   progress[state.cls] = state.epIdx; localStorage.setItem('geo_prog_v5', JSON.stringify(progress));
   state.oldIdx = null; renderAll();
+  callLocalDaemon('/action', { type: 'sync_ep', ep: state.epIdx + 1 });
 }
 function selectEp(v) {
   state.epIdx = parseInt(v, 10) || 0;
   progress[state.cls] = state.epIdx; localStorage.setItem('geo_prog_v5', JSON.stringify(progress));
   state.oldIdx = null; renderAll();
+  callLocalDaemon('/action', { type: 'sync_ep', ep: state.epIdx + 1 });
 }
 
 function startQuizFlow() {
@@ -709,20 +858,57 @@ function addSec(s) {
 }
 function togglePause() { state.paused = !state.paused; renderAll(); }
 
-function closeBoardWindow() {
+async function closeBoardWindow() {
+  await callLocalDaemon('/action', { type: 'close_lock' });
   window.close();
-  setTimeout(() => { document.body.innerHTML = '<div style="margin:auto;text-align:center;"><h1 style="color:#FACC15;">已结束本节展示，请按 Alt+F4 或右上角 × 关闭窗口</h1></div>'; }, 300);
+  setTimeout(() => { document.body.innerHTML = '<div style="margin:auto;text-align:center;"><h1 style="color:#FACC15;">已结束本节展示（本节不再自动重弹），请按 Alt+F4 或右上角 × 关闭窗口</h1></div>'; }, 300);
 }
-function snoozeBoard() {
+async function snoozeBoard() {
+  await callLocalDaemon('/action', { type: 'snooze', sec: 120 });
   window.close();
-  document.body.innerHTML = `<div style="margin:auto;text-align:center;padding:32px;"><h1 style="font-size:28px;color:var(--gold);margin-bottom:14px;">👌 已退回桌面让位</h1><button class="act-btn btn-primary" style="margin:0 auto;" onclick="location.reload()">▶ 恢复地理课前准备屏</button></div>`;
+  document.body.innerHTML = `<div style="margin:auto;text-align:center;padding:32px;"><h1 style="font-size:28px;color:var(--gold);margin-bottom:14px;">👌 已退回桌面让位（2分钟后自动恢复）</h1><button class="act-btn btn-primary" style="margin:0 auto;" onclick="location.reload()">▶ 立即恢复地理课前准备屏</button></div>`;
 }
-function finishAndAdvance() {
+async function finishAndAdvance() {
   if (state.epIdx < bank.length - 1) state.epIdx++;
   progress[state.cls] = state.epIdx; localStorage.setItem('geo_prog_v5', JSON.stringify(progress));
+  await callLocalDaemon('/action', { type: 'sync_ep', ep: state.epIdx + 1 });
+  await callLocalDaemon('/action', { type: 'close_lock' });
   state.stage = 'prep'; state.oldIdx = null; resolvePrepTargetBell();
   if (window.opener || window.history.length <= 1) { window.close(); }
   renderAll();
+}
+
+function fmtDateTimeLabel(ms) {
+  const d = new Date(ms);
+  const pad = n => String(n).padStart(2, '0');
+  return `${d.getMonth()+1}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+async function applyBoardPause(untilMs, label) {
+  dndState = { pauseUntilMs: untilMs, pauseLabel: label };
+  localStorage.setItem('geo_dnd_v7', JSON.stringify(dndState));
+  syncTopClassAndDndUI();
+  await callLocalDaemon('/action', { type: 'set_pause', pauseUntilMs: untilMs, pauseLabel: label });
+  showSyncToast(untilMs > Date.now()
+    ? `⏸ 已开启免打扰：暂停自动弹窗至 ${label}（到期自动恢复）`
+    : '🟢 已恢复正常课前自动弹窗值守！');
+}
+function quickPauseDays(days) {
+  const d = new Date();
+  if (days <= 0) {
+    d.setHours(23, 59, 0, 0);
+  } else {
+    d.setDate(d.getDate() + days);
+    d.setHours(21, 30, 0, 0);
+  }
+  const ms = d.getTime();
+  applyBoardPause(ms, fmtDateTimeLabel(ms));
+}
+function applyCustomPauseDt() {
+  const v = document.getElementById('dnd-custom-dt').value;
+  if (!v) { showSyncToast('⚠️ 请先选择恢复日期和时间', true); return; }
+  const ms = new Date(v).getTime();
+  if (isNaN(ms) || ms <= Date.now()) { showSyncToast('⚠️ 请选择未来的时间点', true); return; }
+  applyBoardPause(ms, fmtDateTimeLabel(ms));
 }
 
 function openSettings() {
@@ -730,11 +916,21 @@ function openSettings() {
   document.getElementById('gate-sec').value = gateDelaySec;
   document.getElementById('old-dur').value = oldQuizSec;
   document.getElementById('new-dur').value = newQuizSec;
+  const bSel = document.getElementById('bind-cls-select');
+  if (bSel) bSel.value = state.cls;
+  const dtInp = document.getElementById('dnd-custom-dt');
+  if (dtInp && !dtInp.value) {
+    const defD = new Date(Date.now() + 3 * 86400000);
+    defD.setHours(18, 0, 0, 0);
+    const pad = n => String(n).padStart(2, '0');
+    dtInp.value = `${defD.getFullYear()}-${pad(defD.getMonth()+1)}-${pad(defD.getDate())}T18:00`;
+  }
+  syncTopClassAndDndUI();
   updateVerBadge();
   document.getElementById('settings-modal').style.display = 'flex';
 }
 function closeSettings() { document.getElementById('settings-modal').style.display = 'none'; }
-function saveSettings() {
+async function saveSettings() {
   clockOffsetMin = parseInt(document.getElementById('clock-offset').value || '0', 10);
   gateDelaySec = Math.max(3, Math.min(30, parseInt(document.getElementById('gate-sec').value || '8', 10)));
   oldQuizSec = Math.max(20, parseInt(document.getElementById('old-dur').value || '90', 10));
@@ -743,6 +939,19 @@ function saveSettings() {
   localStorage.setItem('geo_gate_sec_v6', String(gateDelaySec));
   localStorage.setItem('geo_old_sec_v6', String(oldQuizSec));
   localStorage.setItem('geo_new_sec_v6', String(newQuizSec));
+
+  const bSel = document.getElementById('bind-cls-select');
+  const chosenCls = bSel ? bSel.value : state.cls;
+  isClsLocked = true;
+  localStorage.setItem('geo_cls_locked_v7', '1');
+  if (chosenCls !== state.cls) {
+    switchClass(chosenCls);
+  }
+  await callLocalDaemon('/action', {
+    type: 'update_cfg',
+    offsetMin: clockOffsetMin,
+    clsCode: chosenCls.replace('班', '')
+  });
 
   const np = document.getElementById('new-prep').value.trim(), nq = document.getElementById('new-quiz').value.trim();
   if (np && nq) {
@@ -812,14 +1021,14 @@ async function syncCloudBankNow(manual) {
     const ts = Date.now();
     const bases = shaRef !== 'main'
       ? [
-          `https://raw.githubusercontent.com/AutumnSorrow/geo-pass-tracker/${shaRef}/board/`,
-          `https://gcore.jsdelivr.net/gh/AutumnSorrow/geo-pass-tracker@${shaRef}/board/`,
           `https://testingcf.jsdelivr.net/gh/AutumnSorrow/geo-pass-tracker@${shaRef}/board/`,
+          `https://gcore.jsdelivr.net/gh/AutumnSorrow/geo-pass-tracker@${shaRef}/board/`,
+          `https://cdn.jsdelivr.net/gh/AutumnSorrow/geo-pass-tracker@${shaRef}/board/`,
           `https://autumnsorrow.github.io/geo-pass-tracker/board/`
         ]
       : [
           `https://autumnsorrow.github.io/geo-pass-tracker/board/`,
-          `https://raw.githubusercontent.com/AutumnSorrow/geo-pass-tracker/main/board/`,
+          `https://testingcf.jsdelivr.net/gh/AutumnSorrow/geo-pass-tracker@main/board/`,
           `https://gcore.jsdelivr.net/gh/AutumnSorrow/geo-pass-tracker@main/board/`
         ];
     const mTxt = await fetchTextWithFallback(bases.map(b => `${b}board_manifest.json?t=${ts}`), 5000);
@@ -904,6 +1113,8 @@ setInterval(() => {
   }
 }, 1000);
 tickClock(); renderAll(); updateVerBadge();
+pollLocalDaemonStatus(true);
+setInterval(() => pollLocalDaemonStatus(false), 4000);
 if (state.stage === 'prep') { setTimeout(() => syncCloudBankNow(false), 1500); }
 </script>
 </body>
