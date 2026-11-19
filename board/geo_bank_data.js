@@ -1,7 +1,7 @@
 window.GEO_DEFAULT_BANK = {
   "project_name": "高三地理课前通关系统 v3.0（无纬度真轮廓·三屏全图成网版）",
   "version": "6.0",
-  "updated_at": "2026-11-18",
+  "updated_at": "2026-11-19",
   "mode": "课前图文准备 + 单屏聚焦闭卷（先旧点多变体局部靶点快答90s → 后新点全默210s） + 防抄停笔锁屏 + 高清标答",
   "items": [
     {
@@ -1109,5 +1109,5 @@ window.GEO_DEFAULT_BANK = {
       ]
     }
   ],
-  "build_version": "20261118.192137"
+  "build_version": "20261119.132739"
 };

@@ -89,9 +89,36 @@ function Get-RuntimeState {
             applied_remote_ts   = [int64]0
             current_ep          = 1
             board_open_ping_ms  = [int64]0
+            class_ep            = [PSCustomObject]@{ "10" = 1; "11" = 1 }
+            recent_old          = [PSCustomObject]@{ "10" = @(); "11" = @() }
+            vcnt_map            = [PSCustomObject]@{}
+            ui_prefs            = $null
+        }
+    } else {
+        if (-not $st.PSObject.Properties['class_ep'] -or -not $st.class_ep) {
+            $seedEp = if ([int]$st.current_ep -ge 1) { [int]$st.current_ep } else { 1 }
+            $st | Add-Member -NotePropertyName "class_ep" -NotePropertyValue ([PSCustomObject]@{ "10" = $seedEp; "11" = $seedEp }) -Force
+        }
+        if (-not $st.PSObject.Properties['recent_old'] -or -not $st.recent_old) {
+            $st | Add-Member -NotePropertyName "recent_old" -NotePropertyValue ([PSCustomObject]@{ "10" = @(); "11" = @() }) -Force
+        }
+        if (-not $st.PSObject.Properties['vcnt_map'] -or -not $st.vcnt_map) {
+            $st | Add-Member -NotePropertyName "vcnt_map" -NotePropertyValue ([PSCustomObject]@{}) -Force
+        }
+        if (-not $st.PSObject.Properties['ui_prefs']) {
+            $st | Add-Member -NotePropertyName "ui_prefs" -NotePropertyValue $null -Force
         }
     }
     return $st
+}
+
+function Get-SavedClassEp($st, [string]$ClsCode) {
+    if ($st -and $st.PSObject.Properties['class_ep'] -and $st.class_ep -and $st.class_ep.PSObject.Properties[$ClsCode]) {
+        $v = [int]$st.class_ep.$ClsCode
+        if ($v -ge 1) { return $v }
+    }
+    if ($st -and [int]$st.current_ep -ge 1) { return [int]$st.current_ep }
+    return 1
 }
 
 function Stop-AllOtherDaemons {
@@ -209,7 +236,9 @@ function Find-UpcomingSlot($cfg, [string]$ClsCode, [double]$MinFrom = -2.0, [dou
 function Open-BoardApp([string]$ClsCode, [string]$TargetTime = "", [int]$OffsetMin = 0) {
     try { [IdleWin32]::WakeDisplayNow() } catch {}
     $exe = Get-BrowserExe
-    $qs = "?class=$ClsCode&locked=1&stage=prep&offset=$OffsetMin"
+    $stOpen = Get-RuntimeState
+    $savedEp = Get-SavedClassEp $stOpen $ClsCode
+    $qs = "?class=$ClsCode&locked=1&stage=prep&offset=$OffsetMin&ep=$savedEp"
     if ($TargetTime -ne "") { $qs += "&target=$TargetTime" }
     $uri = ([System.Uri]$HtmlPath).AbsoluteUri + $qs
     $profDir = Join-Path $ScriptDir ".board_kiosk_profile"
@@ -420,10 +449,23 @@ function Handle-LocalApiPending {
             $client.ReceiveTimeout = 800
             $client.SendTimeout = 800
             $stream = $client.GetStream()
+            $ms = New-Object System.IO.MemoryStream
             $buf = New-Object byte[] 8192
             $readLen = $stream.Read($buf, 0, $buf.Length)
-            if ($readLen -le 0) { $client.Close(); continue }
-            $reqRaw = [System.Text.Encoding]::UTF8.GetString($buf, 0, $readLen)
+            if ($readLen -le 0) { $ms.Dispose(); $client.Close(); continue }
+            $ms.Write($buf, 0, $readLen)
+            $hdrProbe = [System.Text.Encoding]::ASCII.GetString($ms.ToArray())
+            $hdrEnd = $hdrProbe.IndexOf("`r`n`r`n")
+            if ($hdrEnd -ge 0 -and $hdrProbe -match '(?im)^Content-Length:\s*(\d+)') {
+                $needTotal = $hdrEnd + 4 + [int]$Matches[1]
+                while ($ms.Length -lt $needTotal) {
+                    $r2 = $stream.Read($buf, 0, $buf.Length)
+                    if ($r2 -le 0) { break }
+                    $ms.Write($buf, 0, $r2)
+                }
+            }
+            $reqRaw = [System.Text.Encoding]::UTF8.GetString($ms.ToArray())
+            $ms.Dispose()
             $firstLine = ($reqRaw -split "`r`n")[0]
             $parts = $firstLine -split " "
             $method = $parts[0]
@@ -438,15 +480,21 @@ function Handle-LocalApiPending {
                 $cSt.board_open_ping_ms = Get-NowMs
                 Write-JsonSafe $StatePath $cSt
                 $cCls = [string]$cCfg.current_blackboard_class
+                $savedEp = Get-SavedClassEp $cSt $cCls
                 $respJson = ([PSCustomObject]@{
                     ok           = $true
                     clsCode      = $cCls
                     cls          = "${cCls}班"
+                    ep           = $savedEp
+                    classEp      = $cSt.class_ep
+                    recentOld    = $cSt.recent_old
+                    vcntMap      = $cSt.vcnt_map
+                    uiPrefs      = $cSt.ui_prefs
                     offsetMin    = [int]$cCfg.clock_offset_minutes
                     pauseUntilMs = [int64]$cSt.pause_until_ms
                     pauseLabel   = [string]$cSt.pause_label
                     ver          = (Get-LocalBuildVer)
-                } | ConvertTo-Json -Compress)
+                } | ConvertTo-Json -Depth 6 -Compress)
             } elseif ($method -eq "POST" -and $reqPath -eq "/action") {
                 $idxBody = $reqRaw.IndexOf("`r`n`r`n")
                 $bodyStr = if ($idxBody -ge 0) { $reqRaw.Substring($idxBody + 4) } else { "{}" }
@@ -478,11 +526,26 @@ function Handle-LocalApiPending {
                     $cSt.board_open_ping_ms = 0
                     Write-JsonSafe $StatePath $cSt
                 } elseif ($act.type -eq "sync_ep") {
-                    if ($act.ep -and ([int]$act.ep -ne [int]$cSt.current_ep)) {
-                        $cSt.current_ep = [int]$act.ep
+                    if ($act.ep -and ([int]$act.ep -ge 1)) {
+                        $epVal = [int]$act.ep
+                        $tCls = if ($act.clsCode -in @("10","11")) { [string]$act.clsCode } else { $cCls }
+                        $prevClsEp = Get-SavedClassEp $cSt $tCls
+                        $cSt.class_ep | Add-Member -NotePropertyName $tCls -NotePropertyValue $epVal -Force
+                        if ($tCls -eq $cCls) { $cSt.current_ep = $epVal }
                         Write-JsonSafe $StatePath $cSt
-                        $needHb = $true
+                        if ($epVal -ne $prevClsEp) { $needHb = $true }
                     }
+                } elseif ($act.type -eq "sync_board_prefs") {
+                    if ($act.clsCode -in @("10","11") -and $null -ne $act.recent) {
+                        $cSt.recent_old | Add-Member -NotePropertyName ([string]$act.clsCode) -NotePropertyValue @($act.recent) -Force
+                    }
+                    if ($act.vcntKey -and $null -ne $act.vcntVal) {
+                        $cSt.vcnt_map | Add-Member -NotePropertyName ([string]$act.vcntKey) -NotePropertyValue ([int]$act.vcntVal) -Force
+                    }
+                    if ($act.uiPrefs) {
+                        $cSt.ui_prefs = $act.uiPrefs
+                    }
+                    Write-JsonSafe $StatePath $cSt
                 } elseif ($act.type -eq "update_cfg") {
                     if ($null -ne $act.offsetMin) { $cCfg.clock_offset_minutes = [int]$act.offsetMin }
                     if ($act.clsCode -in @("10","11") -and $act.clsCode -ne $cCfg.current_blackboard_class) {
