@@ -1,6 +1,6 @@
 {
-    "build_version":  "20261119.132739",
-    "published_at":  "2026-11-19 13:27:40",
+    "build_version":  "20261119.225815",
+    "published_at":  "2026-11-19 22:58:17",
     "episode_count":  28,
     "files":  [
                   {
@@ -11,7 +11,7 @@
                   {
                       "path":  "geo_bank_data.js",
                       "size":  80239,
-                      "sha256":  "30bccf90fa87a24c09e8d3e17892c49eb893040e83553425b00b111c4fc9b457"
+                      "sha256":  "ae01f4aaf936711771e0d14c91a5119b11a2cf93c31735b80a53e3f9597edfdb"
                   },
                   {
                       "path":  "geo_maps.js",
@@ -20,8 +20,8 @@
                   },
                   {
                       "path":  "guard_daemon.ps1",
-                      "size":  33626,
-                      "sha256":  "5c52f9d4486ea448de96167c7431fa15443dd05ee1d5adade14deb9654098308"
+                      "size":  34280,
+                      "sha256":  "ece8673f62b1c905e49c09bdc2d45c2812d14e8a4ce7bf04e6cb0822ec50bb66"
                   },
                   {
                       "path":  "guard_launcher.vbs",

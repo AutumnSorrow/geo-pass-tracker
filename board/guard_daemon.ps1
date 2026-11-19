@@ -408,6 +408,14 @@ function Sync-RemoteControl($curCfg, $curState) {
         }
     } catch {}
 
+    try {
+        $ghCtlTxt = $DaemonHttp.GetStringAsync("https://autumnsorrow.github.io/geo-pass-tracker/board/board_control.json?t=$(Get-NowMs)").GetAwaiter().GetResult()
+        if ($ghCtlTxt) {
+            $ghCtlObj = $ghCtlTxt | ConvertFrom-Json
+            if ($ghCtlObj) { $candidates += $ghCtlObj }
+        }
+    } catch {}
+
     $diskCtl = Read-JsonSafe (Join-Path $ScriptDir "board_control.json")
     if ($diskCtl) { $candidates += $diskCtl }
 
@@ -602,7 +610,8 @@ function Run-InProcessCloudSync([string]$LanUrl = "") {
 }
 
 $lastCloudSync = (Get-Date).AddSeconds(-172)
-$lastRemoteCtl = (Get-Date).AddSeconds(-55)
+$lastHbSent    = (Get-Date).AddSeconds(-892)
+$lastRemoteCtl = (Get-Date).AddSeconds(-170)
 $lastLanVer    = ""
 
 while ($true) {
@@ -672,17 +681,26 @@ while ($true) {
             }
         }
 
-        if (((Get-Date) - $lastRemoteCtl).TotalSeconds -ge 60) {
+        if (((Get-Date) - $lastRemoteCtl).TotalSeconds -ge 180) {
             $lastRemoteCtl = Get-Date
-            if (Sync-RemoteControl $cfg $st) { Send-BoardHeartbeat $cfg $st }
+            if (Sync-RemoteControl $cfg $st) {
+                Send-BoardHeartbeat $cfg $st
+                $lastHbSent = Get-Date
+            }
         }
 
         if (((Get-Date) - $lastCloudSync).TotalSeconds -ge 180) {
             $lastCloudSync = Get-Date
             Run-InProcessCloudSync "" | Out-Null
-            $stAfter = Get-RuntimeState
-            Sync-RemoteControl $cfg $stAfter | Out-Null
-            Send-BoardHeartbeat $cfg $stAfter
+        }
+
+        if (((Get-Date) - $lastHbSent).TotalSeconds -ge 900) {
+            $lastHbSent = Get-Date
+            $curHm = (Get-Date).AddMinutes($offset).ToString("HH:mm")
+            if ($curHm -ge "06:15" -and $curHm -le "22:10") {
+                $stAfter = Get-RuntimeState
+                Send-BoardHeartbeat $cfg $stAfter
+            }
         }
     } catch {}
 
