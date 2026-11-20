@@ -1,7 +1,9 @@
 ﻿param(
     [string]$Mode = "Daemon", # Daemon | LaunchNow | CheckOnce | Install | Uninstall
     [switch]$HotReload,
-    [switch]$NoCloud
+    [switch]$NoCloud,
+    [string]$PresetSecret = "",
+    [switch]$CliMode
 )
 
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
@@ -308,25 +310,234 @@ if ($Mode -eq "Uninstall") {
     exit 0
 }
 
+function Open-TouchKeyboard {
+    try {
+        $tabTip = "C:\Program Files\Common Files\microsoft shared\ink\TabTip.exe"
+        if (Test-Path $tabTip) {
+            Start-Process -FilePath $tabTip -ErrorAction SilentlyContinue
+            return $true
+        }
+    } catch {}
+    try {
+        Start-Process -FilePath "osk.exe" -ErrorAction SilentlyContinue
+        return $true
+    } catch {}
+    return $false
+}
+
+function Show-TouchInstallWizard($curCfg, [string]$DefaultCls, [string]$PrefilledSecret) {
+    try {
+        Add-Type -AssemblyName System.Windows.Forms
+        Add-Type -AssemblyName System.Drawing
+        [System.Windows.Forms.Application]::EnableVisualStyles()
+
+        $form = New-Object System.Windows.Forms.Form
+        $form.Text = "高三地理课前通关 · 无键盘纯触控部署向导"
+        $form.Size = New-Object System.Drawing.Size(620, 560)
+        $form.StartPosition = "CenterScreen"
+        $form.TopMost = $true
+        $form.FormBorderStyle = "FixedDialog"
+        $form.MaximizeBox = $false
+        $form.BackColor = [System.Drawing.Color]::FromArgb(11, 19, 36)
+        $form.ForeColor = [System.Drawing.Color]::White
+
+        $fTitle = New-Object System.Drawing.Font("Microsoft YaHei", 15, [System.Drawing.FontStyle]::Bold)
+        $fLab   = New-Object System.Drawing.Font("Microsoft YaHei", 11, [System.Drawing.FontStyle]::Bold)
+        $fBtn   = New-Object System.Drawing.Font("Microsoft YaHei", 12, [System.Drawing.FontStyle]::Bold)
+
+        $stateObj = [PSCustomObject]@{
+            Confirmed = $false
+            Cls       = if ($DefaultCls -in @("10","11")) { $DefaultCls } else { "10" }
+            Parity    = if ($curCfg.anchor_week_parity -eq "even") { "even" } else { "odd" }
+            Offset    = [int]$curCfg.clock_offset_minutes
+            Secret    = $PrefilledSecret
+        }
+
+        $lblHead = New-Object System.Windows.Forms.Label
+        $lblHead.Text = "🏫 青云实验中学 · 黑板纯触控一键部署（无需键盘）"
+        $lblHead.Font = $fTitle
+        $lblHead.ForeColor = [System.Drawing.Color]::FromArgb(250, 204, 21)
+        $lblHead.Location = New-Object System.Drawing.Point(20, 16)
+        $lblHead.Size = New-Object System.Drawing.Size(570, 34)
+        $form.Controls.Add($lblHead)
+
+        # 1. Class buttons
+        $l1 = New-Object System.Windows.Forms.Label
+        $l1.Text = "1. 请点选本教室绑定班级："
+        $l1.Font = $fLab; $l1.Location = New-Object System.Drawing.Point(22, 64); $l1.Size = New-Object System.Drawing.Size(550, 24)
+        $form.Controls.Add($l1)
+
+        $btnC10 = New-Object System.Windows.Forms.Button
+        $btnC10.Text = "📍 高三 10班"; $btnC10.Font = $fBtn; $btnC10.FlatStyle = "Flat"
+        $btnC10.Location = New-Object System.Drawing.Point(22, 92); $btnC10.Size = New-Object System.Drawing.Size(270, 52)
+        $btnC11 = New-Object System.Windows.Forms.Button
+        $btnC11.Text = "📍 高三 11班"; $btnC11.Font = $fBtn; $btnC11.FlatStyle = "Flat"
+        $btnC11.Location = New-Object System.Drawing.Point(310, 92); $btnC11.Size = New-Object System.Drawing.Size(270, 52)
+        $form.Controls.AddRange(@($btnC10, $btnC11))
+
+        # 2. Parity buttons
+        $l2 = New-Object System.Windows.Forms.Label
+        $l2.Text = "2. 请点选本周校历单双周（此后每周一自动翻转）："
+        $l2.Font = $fLab; $l2.Location = New-Object System.Drawing.Point(22, 160); $l2.Size = New-Object System.Drawing.Size(550, 24)
+        $form.Controls.Add($l2)
+
+        $btnOdd = New-Object System.Windows.Forms.Button
+        $btnOdd.Text = "📅 本周是 单周"; $btnOdd.Font = $fBtn; $btnOdd.FlatStyle = "Flat"
+        $btnOdd.Location = New-Object System.Drawing.Point(22, 188); $btnOdd.Size = New-Object System.Drawing.Size(270, 52)
+        $btnEven = New-Object System.Windows.Forms.Button
+        $btnEven.Text = "📅 本周是 双周"; $btnEven.Font = $fBtn; $btnEven.FlatStyle = "Flat"
+        $btnEven.Location = New-Object System.Drawing.Point(310, 188); $btnEven.Size = New-Object System.Drawing.Size(270, 52)
+        $form.Controls.AddRange(@($btnOdd, $btnEven))
+
+        # 3. Clock offset stepper
+        $l3 = New-Object System.Windows.Forms.Label
+        $l3.Text = "3. 铃声校准（黑板比铃声快填负、慢填正）："
+        $l3.Font = $fLab; $l3.Location = New-Object System.Drawing.Point(22, 256); $l3.Size = New-Object System.Drawing.Size(550, 24)
+        $form.Controls.Add($l3)
+
+        $lblOffVal = New-Object System.Windows.Forms.Label
+        $lblOffVal.Font = $fTitle; $lblOffVal.TextAlign = "MiddleCenter"
+        $lblOffVal.ForeColor = [System.Drawing.Color]::FromArgb(110, 231, 183)
+        $lblOffVal.Location = New-Object System.Drawing.Point(215, 286); $lblOffVal.Size = New-Object System.Drawing.Size(170, 48)
+        $form.Controls.Add($lblOffVal)
+
+        $mkStepBtn = {
+            param($txt, $x, $delta, $isReset)
+            $b = New-Object System.Windows.Forms.Button
+            $b.Text = $txt; $b.Font = $fBtn; $b.FlatStyle = "Flat"
+            $b.BackColor = [System.Drawing.Color]::FromArgb(25, 42, 74); $b.ForeColor = [System.Drawing.Color]::White
+            $b.Location = New-Object System.Drawing.Point($x, 286); $b.Size = New-Object System.Drawing.Size(86, 48)
+            $b.Add_Click({
+                if ($isReset) { $stateObj.Offset = 0 } else { $stateObj.Offset += $delta }
+                $lblOffVal.Text = "$($stateObj.Offset) 分钟"
+            }.GetNewClosure())
+            return $b
+        }
+        $form.Controls.Add((& $mkStepBtn "-5分" 22 -5 $false))
+        $form.Controls.Add((& $mkStepBtn "-1分" 116 -1 $false))
+        $form.Controls.Add((& $mkStepBtn "+1分" 396 1 $false))
+        $form.Controls.Add((& $mkStepBtn "+5分" 490 5 $false))
+
+        # 4. Remote control secret status (auto-loaded from USB if present)
+        $l4 = New-Object System.Windows.Forms.Label
+        $l4.Text = "4. 手机远控防伪签名口令（插U盘含口令文件时自动填入，免手打）："
+        $l4.Font = $fLab; $l4.Location = New-Object System.Drawing.Point(22, 350); $l4.Size = New-Object System.Drawing.Size(560, 24)
+        $form.Controls.Add($l4)
+
+        $tbSec = New-Object System.Windows.Forms.TextBox
+        $tbSec.Font = $fLab; $tbSec.UseSystemPasswordChar = $true
+        $tbSec.BackColor = [System.Drawing.Color]::FromArgb(8, 16, 32); $tbSec.ForeColor = [System.Drawing.Color]::White
+        $tbSec.Location = New-Object System.Drawing.Point(22, 380); $tbSec.Size = New-Object System.Drawing.Size(410, 34)
+        if ($PrefilledSecret) { $tbSec.Text = $PrefilledSecret }
+        $form.Controls.Add($tbSec)
+
+        $btnOsk = New-Object System.Windows.Forms.Button
+        $btnOsk.Text = "⌨️ 屏幕键盘"; $btnOsk.Font = $fLab; $btnOsk.FlatStyle = "Flat"
+        $btnOsk.BackColor = [System.Drawing.Color]::FromArgb(30, 58, 138); $btnOsk.ForeColor = [System.Drawing.Color]::White
+        $btnOsk.Location = New-Object System.Drawing.Point(442, 378); $btnOsk.Size = New-Object System.Drawing.Size(138, 36)
+        $btnOsk.Add_Click({ Open-TouchKeyboard | Out-Null; $tbSec.Focus() })
+        $form.Controls.Add($btnOsk)
+
+        $lblSecTip = New-Object System.Windows.Forms.Label
+        $lblSecTip.Font = New-Object System.Drawing.Font("Microsoft YaHei", 9.5)
+        $lblSecTip.Location = New-Object System.Drawing.Point(22, 418); $lblSecTip.Size = New-Object System.Drawing.Size(560, 22)
+        if ($PrefilledSecret) {
+            $lblSecTip.ForeColor = [System.Drawing.Color]::FromArgb(110, 231, 183)
+            $lblSecTip.Text = "🟢 已自动读取 U 盘预置远控口令，直接点下方绿色按钮完成部署！"
+        } elseif ($curCfg.PSObject.Properties['remote_control_secret'] -and ([string]$curCfg.remote_control_secret).Trim()) {
+            $lblSecTip.ForeColor = [System.Drawing.Color]::FromArgb(147, 197, 253)
+            $lblSecTip.Text = "ℹ️ 本机已保存过远控口令（留空将保持原口令不变）。"
+        } else {
+            $lblSecTip.ForeColor = [System.Drawing.Color]::FromArgb(253, 230, 138)
+            $lblSecTip.Text = "💡 无键盘可先留空直接部署，稍后插U盘或在大屏【设置】内置软键盘中录入。"
+        }
+        $form.Controls.Add($lblSecTip)
+
+        $syncStyles = {
+            $cActive = [System.Drawing.Color]::FromArgb(37, 99, 235)
+            $cIdle   = [System.Drawing.Color]::FromArgb(19, 32, 59)
+            $btnC10.BackColor  = if ($stateObj.Cls -eq "10") { $cActive } else { $cIdle }
+            $btnC11.BackColor  = if ($stateObj.Cls -eq "11") { $cActive } else { $cIdle }
+            $btnOdd.BackColor  = if ($stateObj.Parity -eq "odd") { $cActive } else { $cIdle }
+            $btnEven.BackColor = if ($stateObj.Parity -eq "even") { $cActive } else { $cIdle }
+            $lblOffVal.Text    = "$($stateObj.Offset) 分钟"
+        }
+        $btnC10.Add_Click({ $stateObj.Cls = "10"; & $syncStyles })
+        $btnC11.Add_Click({ $stateObj.Cls = "11"; & $syncStyles })
+        $btnOdd.Add_Click({ $stateObj.Parity = "odd"; & $syncStyles })
+        $btnEven.Add_Click({ $stateObj.Parity = "even"; & $syncStyles })
+        & $syncStyles
+
+        $btnOk = New-Object System.Windows.Forms.Button
+        $btnOk.Text = "✅ 确认部署并启动零黑框静默值守"; $btnOk.Font = $fTitle; $btnOk.FlatStyle = "Flat"
+        $btnOk.BackColor = [System.Drawing.Color]::FromArgb(16, 185, 129); $btnOk.ForeColor = [System.Drawing.Color]::FromArgb(5, 46, 22)
+        $btnOk.Location = New-Object System.Drawing.Point(22, 452); $btnOk.Size = New-Object System.Drawing.Size(558, 56)
+        $btnOk.Add_Click({
+            $stateObj.Secret = $tbSec.Text.Trim()
+            $stateObj.Confirmed = $true
+            $form.Close()
+        })
+        $form.Controls.Add($btnOk)
+
+        $null = $form.ShowDialog()
+        $form.Dispose()
+        return $stateObj
+    } catch {
+        return $null
+    }
+}
+
 if ($Mode -eq "Install") {
-    Write-Host "==========================================================" -ForegroundColor Cyan
-    Write-Host "  青云实验中学 · 高三地理课前通关系统 一体机部署向导" -ForegroundColor Cyan
-    Write-Host "==========================================================" -ForegroundColor Cyan
-    $inCls = Read-Host "1. 请输入本教室绑定班级（填 10 或 11，直接回车默认 [$cls]）"
-    if ($inCls -in @("10","11")) { $cfg.current_blackboard_class = $inCls; $cls = $inCls }
+    $autoSecret = $PresetSecret.Trim()
+    if (-not $autoSecret) {
+        foreach ($cand in @((Join-Path $ScriptDir "local_ctl_secret.txt"), (Join-Path (Split-Path -Parent $ScriptDir) "local_ctl_secret.txt"))) {
+            if (Test-Path $cand) {
+                $autoSecret = ([System.IO.File]::ReadAllText($cand, [System.Text.Encoding]::UTF8)).Trim()
+                if ($autoSecret) { break }
+            }
+        }
+    }
 
-    $inParity = Read-Host "2. 本周在学校校历中是单周还是双周？（填 1=单周，2=双周，此后每周一自动翻转）"
-    $today = Get-Date
-    $cfg.anchor_monday = $today.Date.AddDays(-(([int]$today.DayOfWeek + 6) % 7)).ToString("yyyy-MM-dd")
-    $cfg.anchor_week_parity = if ($inParity -eq "2") { "even" } else { "odd" }
+    $wizRes = if (-not $CliMode) { Show-TouchInstallWizard $cfg $cls $autoSecret } else { $null }
+    if ($wizRes) {
+        if (-not $wizRes.Confirmed) {
+            Write-Host "已取消部署。" -ForegroundColor Yellow
+            exit 0
+        }
+        $cls = [string]$wizRes.Cls
+        $cfg.current_blackboard_class = $cls
+        $today = Get-Date
+        $cfg.anchor_monday = $today.Date.AddDays(-(([int]$today.DayOfWeek + 6) % 7)).ToString("yyyy-MM-dd")
+        $cfg.anchor_week_parity = [string]$wizRes.Parity
+        $cfg.clock_offset_minutes = [int]$wizRes.Offset
+        if ($wizRes.Secret -ne "") {
+            $cfg | Add-Member -NotePropertyName "remote_control_secret" -NotePropertyValue ([string]$wizRes.Secret) -Force
+        }
+    } else {
+        Write-Host "==========================================================" -ForegroundColor Cyan
+        Write-Host "  青云实验中学 · 高三地理课前通关系统 一体机部署向导" -ForegroundColor Cyan
+        Write-Host "==========================================================" -ForegroundColor Cyan
+        $inCls = Read-Host "1. 请输入本教室绑定班级（填 10 或 11，直接回车默认 [$cls]）"
+        if ($inCls -in @("10","11")) { $cfg.current_blackboard_class = $inCls; $cls = $inCls }
 
-    $inOff = Read-Host "3. 一体机时间校准：比学校铃声快2分钟填 -2，慢2分钟填 2（准点直接回车填 0）"
-    if ($inOff -match "^-?\d+$") { $cfg.clock_offset_minutes = [int]$inOff }
+        $inParity = Read-Host "2. 本周在学校校历中是单周还是双周？（填 1=单周，2=双周，此后每周一自动翻转）"
+        $today = Get-Date
+        $cfg.anchor_monday = $today.Date.AddDays(-(([int]$today.DayOfWeek + 6) % 7)).ToString("yyyy-MM-dd")
+        $cfg.anchor_week_parity = if ($inParity -eq "2") { "even" } else { "odd" }
 
-    $curSecHint = if ($cfg.PSObject.Properties['remote_control_secret'] -and [string]$cfg.remote_control_secret) { "已配置" } else { "未配置" }
-    $inCtlSec = (Read-Host "4. 手机远控防伪签名口令（与教师端一致，直接回车保持[$curSecHint]）").Trim()
-    if ($inCtlSec -ne "") {
-        $cfg | Add-Member -NotePropertyName "remote_control_secret" -NotePropertyValue $inCtlSec -Force
+        $inOff = Read-Host "3. 一体机时间校准：比学校铃声快2分钟填 -2，慢2分钟填 2（准点直接回车填 0）"
+        if ($inOff -match "^-?\d+$") { $cfg.clock_offset_minutes = [int]$inOff }
+
+        if ($autoSecret) {
+            $cfg | Add-Member -NotePropertyName "remote_control_secret" -NotePropertyValue $autoSecret -Force
+            Write-Host "4. 已自动注入 U 盘预置远控防伪签名口令！" -ForegroundColor Green
+        } else {
+            $curSecHint = if ($cfg.PSObject.Properties['remote_control_secret'] -and [string]$cfg.remote_control_secret) { "已配置" } else { "未配置" }
+            $inCtlSec = (Read-Host "4. 手机远控防伪签名口令（与教师端一致，直接回车保持[$curSecHint]）").Trim()
+            if ($inCtlSec -ne "") {
+                $cfg | Add-Member -NotePropertyName "remote_control_secret" -NotePropertyValue $inCtlSec -Force
+            }
+        }
     }
 
     Write-JsonSafe $CfgPath $cfg
@@ -693,7 +904,9 @@ function Handle-LocalApiPending {
                 $cCls = [string]$cCfg.current_blackboard_class
                 $needHb = $false
 
-                if ($act.type -eq "set_pause") {
+                if ($act.type -eq "open_osk") {
+                    Open-TouchKeyboard | Out-Null
+                } elseif ($act.type -eq "set_pause") {
                     $cSt.pause_until_ms = [int64]$act.pauseUntilMs
                     $cSt.pause_label = [string]$act.pauseLabel
                     Write-JsonSafe $StatePath $cSt

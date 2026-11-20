@@ -1,6 +1,6 @@
 {
-    "build_version":  "20261120.103701",
-    "published_at":  "2026-11-20 10:37:04",
+    "build_version":  "20261120.113946",
+    "published_at":  "2026-11-20 11:39:48",
     "episode_count":  28,
     "files":  [
                   {
@@ -11,7 +11,7 @@
                   {
                       "path":  "geo_bank_data.js",
                       "size":  80239,
-                      "sha256":  "7ca814638b1575e324ff54856f7d9d8479e92d33864bc503e0145432dff707d4"
+                      "sha256":  "b12dcfa0061d10e2634f5d9bc98f82ae485f9dd7ca6d8609ea6951d14c656182"
                   },
                   {
                       "path":  "geo_maps.js",
@@ -20,8 +20,8 @@
                   },
                   {
                       "path":  "guard_daemon.ps1",
-                      "size":  45414,
-                      "sha256":  "7845a74ca9575ba27412846bf8cb5927472d4f8e598d7187412811d27f6ed24e"
+                      "size":  57068,
+                      "sha256":  "0ca1d41ccc540fbc98ebdf9cbffa315caf74046fe9f63cc7b3096e6be6847748"
                   },
                   {
                       "path":  "guard_launcher.vbs",
@@ -55,8 +55,8 @@
                   },
                   {
                       "path":  "地理课前通关大屏.html",
-                      "size":  74264,
-                      "sha256":  "a3a587586a730cfe20298992da1bc6550b8b0765aa579fadcd3461475a90c664"
+                      "size":  85069,
+                      "sha256":  "8d45df76ee36a01f3040ae38c58a828777742e1120fb8708ca161fa67719f6f7"
                   },
                   {
                       "path":  "立即手动打开大屏.bat",

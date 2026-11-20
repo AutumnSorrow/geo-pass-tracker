@@ -199,6 +199,39 @@
   .form-row { margin-bottom: 12px; }
   .form-row label { display: block; font-size: 14px; font-weight: 700; color: var(--gold); margin-bottom: 5px; }
   .form-input, .form-area { width: 100%; background: #09101F; color: #FFF; border: 1px solid var(--border); border-radius: 8px; padding: 7px 10px; font-size: 14.5px; font-family: inherit; }
+  /* 无键盘黑板专用：数字步进器 + 内置触控软键盘 */
+  .num-stepper { display: flex; align-items: center; gap: 6px; }
+  .num-stepper .form-input { text-align: center; font-weight: 900; font-size: 16px; color: var(--gold); }
+  .step-btn {
+    min-width: 44px; height: 38px; border-radius: 8px; border: 1px solid #3B5998;
+    background: #17284A; color: #FFF; font-size: 18px; font-weight: 900; cursor: pointer; flex-shrink: 0;
+  }
+  .step-btn:active { transform: scale(0.95); background: var(--blue); }
+  .vk-mask {
+    position: fixed; inset: 0; background: rgba(4, 9, 20, 0.78);
+    display: none; align-items: flex-end; justify-content: center; z-index: 150; padding: 14px;
+  }
+  .vk-panel {
+    width: min(860px, 98vw); background: #0F1B33; border: 2px solid var(--gold);
+    border-radius: 16px; padding: 14px; box-shadow: 0 -8px 32px rgba(0,0,0,0.65);
+  }
+  .vk-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 10px; flex-wrap: wrap; }
+  .vk-preview {
+    width: 100%; background: #070E1C; border: 1.5px solid #38BDF8; border-radius: 10px;
+    padding: 9px 12px; font-size: 19px; font-weight: 800; color: #FEF08A; font-family: Consolas, monospace;
+    letter-spacing: 0.6px; margin-bottom: 10px; min-height: 44px; word-break: break-all;
+  }
+  .vk-row { display: flex; gap: 6px; justify-content: center; margin-bottom: 7px; }
+  .vk-key {
+    flex: 1; min-width: 42px; height: 48px; border-radius: 10px; border: 1px solid #335087;
+    background: #1A2D52; color: #FFFFFF; font-size: 18px; font-weight: 800; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .vk-key:active { background: var(--blue); transform: scale(0.96); }
+  .vk-key.wide { flex: 1.6; font-size: 15px; background: #223863; }
+  .vk-key.accent { flex: 1.5; background: rgba(250,204,21,0.2); border-color: var(--gold); color: var(--gold); font-size: 15px; }
+  .vk-key.ok { flex: 1.8; background: var(--emerald); border-color: #34D399; color: #052E16; font-size: 16px; }
+  .vk-key.del { flex: 1.5; background: rgba(244,63,94,0.22); border-color: #FB7185; color: #FFE4E6; font-size: 15px; }
 </style>
 </head>
 <body>
@@ -272,14 +305,45 @@
       </div>
     </div>
     <div class="form-row" style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
-      <div><label>广播铃声误差校准（分钟，快2填-2，慢3填3）：</label><input class="form-input" type="number" id="clock-offset" value="0"></div>
-      <div><label>铃响/停笔安全缓冲秒数（默认 8 秒）：</label><input class="form-input" type="number" id="gate-sec" value="8"></div>
-      <div><label>第1题【旧点快答】单屏时长（秒，默认 90 秒）：</label><input class="form-input" type="number" id="old-dur" value="90"></div>
-      <div><label>第2题【今日新点】单屏时长（秒，默认 210 秒）：</label><input class="form-input" type="number" id="new-dur" value="210"></div>
+      <div>
+        <label>广播铃声误差校准（分钟，快2填-2，慢3填3）：</label>
+        <div class="num-stepper">
+          <button type="button" class="step-btn" onclick="stepNumInput('clock-offset', -1, -30, 30)">−</button>
+          <input class="form-input" type="number" id="clock-offset" value="0" onclick="openVirtualKeyboard('clock-offset', 'num', '广播铃声误差校准（分钟）')">
+          <button type="button" class="step-btn" onclick="stepNumInput('clock-offset', 1, -30, 30)">+</button>
+        </div>
+      </div>
+      <div>
+        <label>铃响/停笔安全缓冲秒数（默认 8 秒）：</label>
+        <div class="num-stepper">
+          <button type="button" class="step-btn" onclick="stepNumInput('gate-sec', -1, 3, 30)">−</button>
+          <input class="form-input" type="number" id="gate-sec" value="8" onclick="openVirtualKeyboard('gate-sec', 'num', '铃响/停笔安全缓冲秒数')">
+          <button type="button" class="step-btn" onclick="stepNumInput('gate-sec', 1, 3, 30)">+</button>
+        </div>
+      </div>
+      <div>
+        <label>第1题【旧点快答】单屏时长（秒，默认 90 秒）：</label>
+        <div class="num-stepper">
+          <button type="button" class="step-btn" onclick="stepNumInput('old-dur', -15, 20, 600)">−</button>
+          <input class="form-input" type="number" id="old-dur" value="90" onclick="openVirtualKeyboard('old-dur', 'num', '旧点快答时长（秒）')">
+          <button type="button" class="step-btn" onclick="stepNumInput('old-dur', 15, 20, 600)">+</button>
+        </div>
+      </div>
+      <div>
+        <label>第2题【今日新点】单屏时长（秒，默认 210 秒）：</label>
+        <div class="num-stepper">
+          <button type="button" class="step-btn" onclick="stepNumInput('new-dur', -15, 30, 900)">−</button>
+          <input class="form-input" type="number" id="new-dur" value="210" onclick="openVirtualKeyboard('new-dur', 'num', '今日新点时长（秒）')">
+          <button type="button" class="step-btn" onclick="stepNumInput('new-dur', 15, 30, 900)">+</button>
+        </div>
+      </div>
     </div>
     <hr style="border-color:var(--border);margin:12px 0;">
     <div class="form-row">
-      <label>➕ 30秒临时插播一期新考点（留空则不新增）：</label>
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px;">
+        <label style="margin:0;">➕ 30秒临时插播一期新考点（留空则不新增）：</label>
+        <button type="button" class="dnd-chip" style="padding:4px 10px;font-size:12.5px;border-color:#38BDF8;color:#BAE6FD;" onclick="openSystemTouchKeyboard()">✍️ 呼出系统中文手写键盘</button>
+      </div>
       <input class="form-input" id="new-mod" placeholder="微专题名称" style="margin-bottom:6px;">
       <textarea class="form-area" id="new-prep" rows="2" placeholder="【课前准备屏】核心母法（用「」括起重点词自动高亮）" style="margin-bottom:6px;"></textarea>
       <textarea class="form-area" id="new-quiz" rows="2" placeholder="【课上闭卷默写屏】默写指令" style="margin-bottom:6px;"></textarea>
@@ -294,10 +358,14 @@
     </div>
     <div class="form-row" style="background:#09101F;padding:8px 12px;border-radius:8px;border:1px dashed var(--border);">
       <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:5px;">
-        <span style="font-size:13px;color:#93C5FD;font-weight:700;">🔐 手机远控防伪签名口令（仅存于本机 schedule_config.json，留空保持不变）：</span>
+        <span style="font-size:13px;color:#93C5FD;font-weight:700;">🔐 手机远控防伪签名口令（无键盘可点右侧软键盘，或用U盘免输一键注入）：</span>
         <span id="ctl-sec-status-txt" style="font-size:12px;font-weight:800;color:#FDE68A;">检测中...</span>
       </div>
-      <input class="form-input" type="password" id="ctl-secret-input" placeholder="输入与教师手机端一致的签名口令（如 geo_...），留空不修改">
+      <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
+        <input class="form-input" style="flex:1;min-width:200px;" type="password" id="ctl-secret-input" placeholder="点击输入或点右侧【⌨️软键盘】（留空保持原口令）" onclick="openVirtualKeyboard('ctl-secret-input', 'secret', '手机远控防伪签名口令')">
+        <button type="button" class="dnd-chip" style="padding:7px 10px;font-size:13px;" id="btn-toggle-sec-vis" onclick="toggleSecretVisibility()">👁️ 显示</button>
+        <button type="button" class="dnd-chip" style="padding:7px 12px;font-size:13px;border-color:var(--gold);color:var(--gold);" onclick="openVirtualKeyboard('ctl-secret-input', 'secret', '手机远控防伪签名口令')">⌨️ 触控软键盘</button>
+      </div>
     </div>
     <div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-top:14px;">
       <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
@@ -311,6 +379,22 @@
         <button class="nav-btn" style="background:var(--emerald);color:#052E16;" onclick="saveSettings()">💾 保存生效</button>
       </div>
     </div>
+  </div>
+</div>
+
+<!-- 大屏内置防误触软键盘（彻底解决 Kiosk 无物理键盘输入难题） -->
+<div class="vk-mask" id="vk-modal" onclick="if(event.target===this) closeVirtualKeyboard()">
+  <div class="vk-panel">
+    <div class="vk-head">
+      <span id="vk-title" style="font-size:15.5px;font-weight:900;color:var(--gold);">⌨️ 黑板内置触控键盘</span>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;">
+        <button type="button" class="dnd-chip" id="vk-btn-mask" style="display:none;padding:4px 10px;font-size:12.5px;" onclick="toggleVkMask()">👁️ 显示明文</button>
+        <button type="button" class="dnd-chip" style="padding:4px 10px;font-size:12.5px;border-color:#38BDF8;color:#BAE6FD;" onclick="openSystemTouchKeyboard()">✍️ 系统中文键盘</button>
+        <button type="button" class="dnd-chip" style="padding:4px 10px;font-size:12.5px;" onclick="closeVirtualKeyboard()">✕ 收起</button>
+      </div>
+    </div>
+    <div class="vk-preview" id="vk-preview"></div>
+    <div id="vk-keys"></div>
   </div>
 </div>
 
@@ -1270,6 +1354,125 @@ async function syncCloudBankNow(manual) {
   } finally {
     if (manual && btn) { btn.textContent = '☁️ 同步'; btn.disabled = false; }
   }
+}
+
+// ==================== 无键盘黑板专用：步进器 + 内置触控软键盘 + 系统手写键盘 ====================
+const vkState = { targetId: '', mode: 'secret', shift: false, showPlain: true };
+
+function stepNumInput(id, delta, minVal, maxVal) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  const cur = parseInt(el.value || '0', 10) || 0;
+  el.value = String(Math.max(minVal, Math.min(maxVal, cur + delta)));
+}
+
+function toggleSecretVisibility() {
+  const inp = document.getElementById('ctl-secret-input');
+  const btn = document.getElementById('btn-toggle-sec-vis');
+  if (!inp) return;
+  const show = inp.type === 'password';
+  inp.type = show ? 'text' : 'password';
+  if (btn) btn.textContent = show ? '🙈 隐藏' : '👁️ 显示';
+}
+
+async function openSystemTouchKeyboard() {
+  const res = await callLocalDaemon('/action', { type: 'open_osk' });
+  if (res && res.ok) {
+    showSyncToast('✍️ 已呼出 Windows 系统触摸/手写键盘（可直接手写中文）');
+  } else {
+    showSyncToast('⚠️ 未连接本机守护进程，请使用上方内置触控软键盘或U盘一键注入', true);
+  }
+}
+
+function openVirtualKeyboard(targetId, mode, titleText) {
+  const inp = document.getElementById(targetId);
+  if (!inp) return;
+  vkState.targetId = targetId;
+  vkState.mode = mode || 'secret';
+  vkState.shift = false;
+  vkState.showPlain = (mode === 'num');
+  const tEl = document.getElementById('vk-title');
+  if (tEl) tEl.textContent = `⌨️ 正在输入：${titleText || targetId}`;
+  const mBtn = document.getElementById('vk-btn-mask');
+  if (mBtn) {
+    mBtn.style.display = (vkState.mode === 'secret') ? 'inline-block' : 'none';
+    mBtn.textContent = vkState.showPlain ? '🙈 隐藏明文' : '👁️ 显示明文';
+  }
+  renderVirtualKeyboard();
+  const modal = document.getElementById('vk-modal');
+  if (modal) modal.style.display = 'flex';
+}
+
+function closeVirtualKeyboard() {
+  const modal = document.getElementById('vk-modal');
+  if (modal) modal.style.display = 'none';
+}
+
+function toggleVkMask() {
+  vkState.showPlain = !vkState.showPlain;
+  const mBtn = document.getElementById('vk-btn-mask');
+  if (mBtn) mBtn.textContent = vkState.showPlain ? '🙈 隐藏明文' : '👁️ 显示明文';
+  updateVkPreview();
+}
+
+function updateVkPreview() {
+  const inp = document.getElementById(vkState.targetId);
+  const pv = document.getElementById('vk-preview');
+  if (!inp || !pv) return;
+  const val = String(inp.value || '');
+  if (!val) {
+    pv.textContent = '(当前为空，请点下方按键输入)';
+    pv.style.color = '#64748B';
+    return;
+  }
+  pv.style.color = '#FEF08A';
+  pv.textContent = (vkState.mode === 'secret' && !vkState.showPlain) ? '•'.repeat(val.length) : val;
+}
+
+function renderVirtualKeyboard() {
+  updateVkPreview();
+  const box = document.getElementById('vk-keys');
+  if (!box) return;
+  const mkBtn = (label, act, cls = '') =>
+    `<button type="button" class="vk-key ${cls}" onmousedown="event.preventDefault()" onclick="vkPress('${escapeHtml(act)}')">${escapeHtml(label)}</button>`;
+
+  if (vkState.mode === 'num') {
+    const rows = [
+      [['7','7'],['8','8'],['9','9'],['⌫ 退格','BKSP','del']],
+      [['4','4'],['5','5'],['6','6'],['+/− 负号','SIGN','wide']],
+      [['1','1'],['2','2'],['3','3'],['🧹 清空','CLR','wide']],
+      [['0','0','wide'],['✅ 完成输入','DONE','ok']]
+    ];
+    box.innerHTML = rows.map(r => `<div class="vk-row">${r.map(([l,a,c]) => mkBtn(l, a, c||'')).join('')}</div>`).join('');
+    return;
+  }
+
+  const up = vkState.shift;
+  const r0 = ['1','2','3','4','5','6','7','8','9','0'];
+  const r1 = 'qwertyuiop'.split('').map(c => up ? c.toUpperCase() : c);
+  const r2 = 'asdfghjkl'.split('').map(c => up ? c.toUpperCase() : c);
+  const r3 = 'zxcvbnm'.split('').map(c => up ? c.toUpperCase() : c);
+  box.innerHTML =
+    `<div class="vk-row">${r0.map(c => mkBtn(c, c)).join('')}</div>` +
+    `<div class="vk-row">${r1.map(c => mkBtn(c, c)).join('')}</div>` +
+    `<div class="vk-row">${r2.map(c => mkBtn(c, c)).join('')}${mkBtn('_','_')}${mkBtn('-','-')}</div>` +
+    `<div class="vk-row">${mkBtn(up ? '⬆ 大写开' : '⇧ 小写', 'SHIFT', 'wide')}${r3.map(c => mkBtn(c, c)).join('')}${mkBtn('⌫ 退格', 'BKSP', 'del')}</div>` +
+    `<div class="vk-row">${mkBtn('⚡ 一键输入 geo_', 'GEO_PREFIX', 'accent')}${mkBtn('🧹 清空', 'CLR', 'wide')}${mkBtn('✅ 输入完成', 'DONE', 'ok')}</div>`;
+}
+
+function vkPress(act) {
+  const inp = document.getElementById(vkState.targetId);
+  if (!inp) return;
+  let val = String(inp.value || '');
+  if (act === 'DONE') { closeVirtualKeyboard(); return; }
+  if (act === 'SHIFT') { vkState.shift = !vkState.shift; renderVirtualKeyboard(); return; }
+  if (act === 'BKSP') { val = val.slice(0, -1); }
+  else if (act === 'CLR') { val = ''; }
+  else if (act === 'SIGN') { val = val.startsWith('-') ? val.slice(1) : (val ? '-' + val : '-'); }
+  else if (act === 'GEO_PREFIX') { if (!val.startsWith('geo_')) val = 'geo_' + val; }
+  else { val += act; }
+  inp.value = val;
+  updateVkPreview();
 }
 
 function tickClock() {
