@@ -457,14 +457,15 @@ let gateDelaySec = parseInt(localStorage.getItem('geo_gate_sec_v6') || '8', 10);
 let autoFlow = localStorage.getItem('geo_autoflow_v6') !== '0';
 let fontScale = parseFloat(localStorage.getItem('geo_fscale_v6') || '1.0');
 
-// 内置10班/11班完整单双周课表（与 schedule_template.json 严格一致；优先采用守护进程 /status 返回的实时课表）
+// [AUTO_SYNC_SCHEDULES_START]
+// 内置10班/11班完整单双周课表（由发布脚本自动从 schedule_config.json 同步；优先采用守护进程 /status 返回的实时课表）
 const CLASS_SCHEDULES = {
   "10班": {
     1: [{ time: "11:05", week: "all" }],
     2: [{ time: "08:55", week: "all" }],
     3: [{ time: "16:15", week: "all" }, { time: "19:35", week: "all" }],
     4: [{ time: "12:30", week: "odd" }, { time: "13:25", week: "all" }],
-    5: [{ time: "07:00", week: "even" }, { time: "14:20", week: "all" }],
+    5: [{ time: "07:00", week: "even" }, { time: "15:20", week: "all" }],
     7: [{ time: "17:50", week: "all" }]
   },
   "11班": {
@@ -476,12 +477,15 @@ const CLASS_SCHEDULES = {
     7: [{ time: "19:35", week: "all" }]
   }
 };
+const DEFAULT_ANCHOR_MONDAY = "2026-11-16";
+const DEFAULT_ANCHOR_PARITY = "odd";
+// [AUTO_SYNC_SCHEDULES_END]
 
 let daemonScheduleMeta = {
   todaySlots: null,
   nextSlotTime: '',
-  anchorMonday: '2026-11-16',
-  anchorWeekParity: 'odd',
+  anchorMonday: DEFAULT_ANCHOR_MONDAY,
+  anchorWeekParity: DEFAULT_ANCHOR_PARITY,
   hasControlSecret: false
 };
 
