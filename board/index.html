@@ -292,6 +292,13 @@
         <option value="11班">高三 11班</option>
       </select>
     </div>
+    <div class="form-row" style="background:#09101F;padding:8px 12px;border-radius:8px;border:1px dashed var(--border);">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:5px;">
+        <span style="font-size:13px;color:#93C5FD;font-weight:700;">🔐 手机远控防伪签名口令（仅存于本机 schedule_config.json，留空保持不变）：</span>
+        <span id="ctl-sec-status-txt" style="font-size:12px;font-weight:800;color:#FDE68A;">检测中...</span>
+      </div>
+      <input class="form-input" type="password" id="ctl-secret-input" placeholder="输入与教师手机端一致的签名口令（如 geo_...），留空不修改">
+    </div>
     <div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-top:14px;">
       <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
         <label class="nav-btn" style="display:inline-flex;align-items:center;">📂 导入题库(JSON)<input type="file" accept=".json" style="display:none" onchange="importBankJSON(event)"></label>
@@ -319,14 +326,34 @@ function verToNum(v) {
 const DISK_BANK_VER = String(window.GEO_DEFAULT_BANK.build_version || window.GEO_DEFAULT_BANK.updated_at || window.GEO_DEFAULT_BANK.version || '20261117');
 window.GEO_RUNTIME_VER = localStorage.getItem('geo_bank_build_ver') || DISK_BANK_VER;
 
+function escapeHtml(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function mergeOfficialAndCustomBank(officialItems, prevItems) {
+  const official = (officialItems || []).map((x, idx) => ({ ...x, id: Number(x.id) || (idx + 1) }));
+  const maxOfficialId = official.reduce((mx, x) => Math.max(mx, Number(x.id) || 0), 0);
+  const customs = (Array.isArray(prevItems) ? prevItems : [])
+    .filter(x => x && x.series_id === 'CUSTOM')
+    .map((x, i) => ({
+      ...x,
+      custom_uid: x.custom_uid || ('CUSTOM_' + (x.id || (i + 1))),
+      id: (Number(x.id) > maxOfficialId) ? Number(x.id) : (Math.max(100, maxOfficialId) + i + 1)
+    }));
+  return [...official, ...customs];
+}
+
 function loadInitialBank() {
   const cachedVer = localStorage.getItem('geo_bank_build_ver') || '';
   const cachedObj = JSON.parse(localStorage.getItem('geo_bank_v6') || 'null');
-  // 当本地 geo_bank_data.js 版本比缓存更新时，自动升级内置题库，同时保留老师临时插播的 CUSTOM 考点
+  // 当本地 geo_bank_data.js 版本比缓存更新时，自动升级内置题库，同时保留老师临时插播的 CUSTOM 考点且绝不改变官方期号
   if (!cachedObj || !Array.isArray(cachedObj.items) || (verToNum(DISK_BANK_VER) > verToNum(cachedVer) && cachedObj.source !== 'manual_json')) {
-    const customs = (cachedObj && Array.isArray(cachedObj.items)) ? cachedObj.items.filter(x => x && x.series_id === 'CUSTOM') : [];
-    const merged = [...window.GEO_DEFAULT_BANK.items.map(x => ({...x})), ...customs];
-    merged.forEach((it, idx) => it.id = idx + 1);
+    const merged = mergeOfficialAndCustomBank(window.GEO_DEFAULT_BANK.items, cachedObj && cachedObj.items);
     localStorage.setItem('geo_bank_build_ver', DISK_BANK_VER);
     localStorage.setItem('geo_bank_v6', JSON.stringify({items: merged, source: 'auto'}));
     window.GEO_RUNTIME_VER = DISK_BANK_VER;
@@ -346,11 +373,57 @@ let gateDelaySec = parseInt(localStorage.getItem('geo_gate_sec_v6') || '8', 10);
 let autoFlow = localStorage.getItem('geo_autoflow_v6') !== '0';
 let fontScale = parseFloat(localStorage.getItem('geo_fscale_v6') || '1.0');
 
-// 内置10班/11班课表（即使双击手动打开，若处于课前15分钟内亦自动锚定真实上课铃声）
+// 内置10班/11班完整单双周课表（与 schedule_template.json 严格一致；优先采用守护进程 /status 返回的实时课表）
 const CLASS_SCHEDULES = {
-  "10班": { 1:["11:05"], 2:["08:55"], 3:["16:15","19:35"], 4:["12:30","13:25"], 5:["07:00","14:20"], 7:["17:50"] },
-  "11班": { 1:["15:20"], 2:["11:05"], 3:["08:55","17:50"], 4:["12:30","16:15"], 5:["07:00","08:00"], 7:["19:35"] }
+  "10班": {
+    1: [{ time: "11:05", week: "all" }],
+    2: [{ time: "08:55", week: "all" }],
+    3: [{ time: "16:15", week: "all" }, { time: "19:35", week: "all" }],
+    4: [{ time: "12:30", week: "odd" }, { time: "13:25", week: "all" }],
+    5: [{ time: "07:00", week: "even" }, { time: "14:20", week: "all" }],
+    7: [{ time: "17:50", week: "all" }]
+  },
+  "11班": {
+    1: [{ time: "15:20", week: "all" }],
+    2: [{ time: "11:05", week: "all" }],
+    3: [{ time: "08:55", week: "all" }, { time: "17:50", week: "all" }],
+    4: [{ time: "12:30", week: "even" }, { time: "16:15", week: "all" }],
+    5: [{ time: "07:00", week: "odd" }, { time: "08:00", week: "all" }],
+    7: [{ time: "19:35", week: "all" }]
+  }
 };
+
+let daemonScheduleMeta = {
+  todaySlots: null,
+  nextSlotTime: '',
+  anchorMonday: '2026-11-16',
+  anchorWeekParity: 'odd',
+  hasControlSecret: false
+};
+
+function getWeekParity(dt, anchorMondayStr, anchorParity) {
+  try {
+    const d0 = new Date(dt.getFullYear(), dt.getMonth(), dt.getDate());
+    const curMon = new Date(d0);
+    curMon.setDate(d0.getDate() - ((d0.getDay() + 6) % 7));
+    const parts = String(anchorMondayStr || '2026-11-16').split('-').map(Number);
+    const ancMon = new Date(parts[0], (parts[1] || 1) - 1, parts[2] || 1);
+    const wDiff = Math.round((curMon.getTime() - ancMon.getTime()) / (7 * 86400000));
+    const isSame = (Math.abs(wDiff) % 2 === 0);
+    if ((anchorParity || 'odd') === 'odd') return isSame ? 'odd' : 'even';
+    return isSame ? 'even' : 'odd';
+  } catch (_) {
+    return 'odd';
+  }
+}
+
+function getEffectiveTodaySlots(clsName, nowCal) {
+  if (Array.isArray(daemonScheduleMeta.todaySlots)) return daemonScheduleMeta.todaySlots;
+  const dow = nowCal.getDay() === 0 ? 7 : nowCal.getDay();
+  const wp = getWeekParity(nowCal, daemonScheduleMeta.anchorMonday, daemonScheduleMeta.anchorWeekParity);
+  const rawList = (CLASS_SCHEDULES[clsName] && CLASS_SCHEDULES[clsName][dow]) || [];
+  return rawList.filter(s => s.week === 'all' || s.week === wp).map(s => s.time);
+}
 
 function pushUiPrefsToDaemon() {
   callLocalDaemon('/action', {
@@ -412,7 +485,7 @@ if (state.epIdx === 0 && state.ansView === 'old') state.ansView = 'new';
 async function callLocalDaemon(ep, bodyObj) {
   try {
     const ctrl = new AbortController();
-    const tid = setTimeout(() => ctrl.abort(), 450);
+    const tid = setTimeout(() => ctrl.abort(), 1200);
     const r = await fetch('http://127.0.0.1:18768' + ep, {
       method: bodyObj ? 'POST' : 'GET',
       body: bodyObj ? JSON.stringify(bodyObj) : undefined,
@@ -464,6 +537,18 @@ async function pollLocalDaemonStatus(isInit) {
     if (res.cls && (!params.has('class'))) {
       state.cls = res.cls;
       localStorage.setItem('geo_cls_v5', res.cls);
+    }
+    if (Array.isArray(res.todaySlots)) daemonScheduleMeta.todaySlots = res.todaySlots;
+    if (typeof res.nextSlotTime === 'string') daemonScheduleMeta.nextSlotTime = res.nextSlotTime;
+    if (res.anchorMonday) daemonScheduleMeta.anchorMonday = String(res.anchorMonday);
+    if (res.anchorWeekParity) daemonScheduleMeta.anchorWeekParity = String(res.anchorWeekParity);
+    if (typeof res.hasControlSecret === 'boolean') daemonScheduleMeta.hasControlSecret = res.hasControlSecret;
+    const ctlSecTxt = document.getElementById('ctl-sec-status-txt');
+    if (ctlSecTxt) {
+      ctlSecTxt.style.color = daemonScheduleMeta.hasControlSecret ? '#6EE7B7' : '#FDE68A';
+      ctlSecTxt.textContent = daemonScheduleMeta.hasControlSecret
+        ? '🟢 已配置（HMAC-SHA256 验签生效）'
+        : '⚠️ 未配置（ntfy匿名指令已默认拒收）';
     }
     if (isInit) {
       if (res.recentOld) {
@@ -525,13 +610,16 @@ function resolvePrepTargetBell() {
   const nowCal = new Date(Date.now() + clockOffsetMin * 60000);
   let tStr = state.targetBellStr;
   if (!tStr) {
-    const dow = nowCal.getDay() === 0 ? 7 : nowCal.getDay();
-    const list = (CLASS_SCHEDULES[state.cls] && CLASS_SCHEDULES[state.cls][dow]) || [];
-    for (const hhmm of list) {
-      const [hh, mm] = hhmm.split(':').map(Number);
-      const tDate = new Date(nowCal); tDate.setHours(hh, mm, 0, 0);
-      const diffSec = Math.round((tDate.getTime() - nowCal.getTime()) / 1000);
-      if (diffSec >= 5 && diffSec <= 900) { tStr = hhmm; break; }
+    if (daemonScheduleMeta.nextSlotTime) {
+      tStr = daemonScheduleMeta.nextSlotTime;
+    } else {
+      const list = getEffectiveTodaySlots(state.cls, nowCal);
+      for (const hhmm of list) {
+        const [hh, mm] = hhmm.split(':').map(Number);
+        const tDate = new Date(nowCal); tDate.setHours(hh, mm, 0, 0);
+        const diffSec = Math.round((tDate.getTime() - nowCal.getTime()) / 1000);
+        if (diffSec >= 5 && diffSec <= 900) { tStr = hhmm; break; }
+      }
     }
   }
   if (tStr && /^\d{1,2}:\d{2}$/.test(tStr)) {
@@ -545,6 +633,7 @@ function resolvePrepTargetBell() {
       return;
     }
   }
+  state.targetBellStr = '';
   state.targetEpochMs = null;
   state.secLeft = 300;
 }
@@ -627,7 +716,7 @@ function playSound(kind) {
   } catch(e) {}
 }
 
-function fmtHL(str) { return (str || '').replace(/「([^」]+)」/g, '<span class="hl">$1</span>'); }
+function fmtHL(str) { return escapeHtml(str || '').replace(/「([^」]+)」/g, '<span class="hl">$1</span>'); }
 function renderPrepBlocks(raw, hasMap) {
   const s = (raw || '').trim();
   const m = s.match(/^([^：①\n]+)：\s*([\s\S]*)$/);
@@ -635,14 +724,28 @@ function renderPrepBlocks(raw, hasMap) {
   const body = m ? m[2].trim() : s;
   const parts = body.split(/[；。\n]+/).map(x => x.trim()).filter(Boolean);
   const clsExtra = hasMap ? '' : 'no-map';
-  return `<div class="pt-wrap">${lead ? `<div class="pt-lead">📌 ${lead}</div>` : ''}${parts.map((p, idx) => `<div class="pt-card c${(idx%4)+1} ${clsExtra}">${fmtHL(p)}</div>`).join('')}</div>`;
+  return `<div class="pt-wrap">${lead ? `<div class="pt-lead">📌 ${escapeHtml(lead)}</div>` : ''}${parts.map((p, idx) => `<div class="pt-card c${(idx%4)+1} ${clsExtra}">${fmtHL(p)}</div>`).join('')}</div>`;
 }
 function renderQuizLines(raw, hasMap, borderCol) {
   const s = (raw || '').replace(/^【[^】]+】\s*/, '').trim();
   const parts = s.split(/[；\n]+/).map(x => x.trim()).filter(Boolean);
   const clsExtra = hasMap ? '' : 'no-map';
   const bStyle = borderCol ? `style="border-left-color:${borderCol};"` : '';
-  return `<div class="quiz-box">${parts.map(p => `<div class="quiz-line ${clsExtra}" ${bStyle}>${p}</div>`).join('')}</div>`;
+  return `<div class="quiz-box">${parts.map(p => `<div class="quiz-line ${clsExtra}" ${bStyle}>${escapeHtml(p)}</div>`).join('')}</div>`;
+}
+function formatEpTag(it) {
+  if (!it) return '第01期';
+  if (it.series_id === 'CUSTOM') return `插播#${it.id}`;
+  return `第${String(it.id).padStart(2, '0')}期`;
+}
+function sanitizeStageForCurrentEp() {
+  state.epIdx = Math.max(0, Math.min(bank.length - 1, Number(state.epIdx) || 0));
+  if (state.epIdx <= 0) {
+    state.oldIdx = null;
+    state.peekOld = false;
+    if (state.stage === 'quiz_old') state.stage = 'quiz_new';
+    if (state.ansView === 'old' || state.ansView === 'dual') state.ansView = 'new';
+  }
 }
 window.zoomDiagramEl = function(holder) {
   const zb = document.getElementById('zoom-box');
@@ -659,9 +762,10 @@ function fmtMMSS(sec) {
 }
 
 function renderAll() {
+  sanitizeStageForCurrentEp();
   applyFontScale(); syncAutoBtn(); syncTopClassAndDndUI();
   document.getElementById('ep-select').innerHTML = bank.map((it, i) =>
-    `<option value="${i}" ${i===state.epIdx?'selected':''}>第${String(it.id).padStart(2,'0')}期｜${it.module}：${it.target_weakness}</option>`
+    `<option value="${i}" ${i===state.epIdx?'selected':''}>${formatEpTag(it)}｜${escapeHtml(it.module)}：${escapeHtml(it.target_weakness)}</option>`
   ).join('');
 
   const cur = bank[state.epIdx];
@@ -674,7 +778,8 @@ function renderAll() {
   const quizDiagOld = oldIt ? window.renderGeoDiagram(oldIt.diagram_id, 'quiz', oldVar?.markers) : '';
   const ansDiagNew = window.renderGeoDiagram(cur.diagram_id, 'ans');
   const ansDiagOld = oldIt ? window.renderGeoDiagram(oldIt.diagram_id, 'ans') : '';
-  const totalQuizSec = state.epIdx === 0 ? (oldQuizSec + newQuizSec) : (oldQuizSec + newQuizSec);
+  const totalQuizSec = oldQuizSec + newQuizSec;
+  const curEpTag = formatEpTag(cur);
 
   const root = document.getElementById('stage-root');
   const bot = document.getElementById('bottom-bar');
@@ -683,12 +788,12 @@ function renderAll() {
     const bellHint = state.targetBellStr ? `距 ${state.targetBellStr} 上课 ` : '准备 ';
     root.innerHTML = `
       <div class="stage-banner banner-prep">
-        <div class="banner-title">📢 课前准备（${state.cls}）· 认准轮廓特征与专有名词，铃响自动切入单屏闭卷默写！</div>
+        <div class="banner-title">📢 课前准备（${escapeHtml(state.cls)}）· 认准轮廓特征与专有名词，铃响自动切入单屏闭卷默写！</div>
         <div class="timer-box" id="stage-timer">${bellHint}${fmtMMSS(state.secLeft)}</div>
       </div>
       <div class="card-grid ${prepDiag ? 'grid-prep-map' : 'grid-single'}">
         <div class="big-card">
-          <span class="card-tag tag-new">★ 今日必背母法（第${String(cur.id).padStart(2,'0')}期 · ${cur.module}）</span>
+          <span class="card-tag tag-new">★ 今日必背母法（${curEpTag} · ${escapeHtml(cur.module)}）</span>
           ${renderPrepBlocks(cur.prep_display, !!prepDiag)}
           <div class="sub-notice">🔗 ${state.epIdx === 0 ? '首期免抽旧点，记熟9支洋流名称与海岸轮廓！' : `铃响后先用 ${oldQuizSec}秒 抽查1道历史旧点，再用 ${newQuizSec}秒 全默今日新点，快翻看通关本！`}</div>
         </div>
@@ -713,11 +818,11 @@ function renderAll() {
         </div>
       </div>`;
     bot.innerHTML = `<div style="color:var(--muted);font-size:14px;font-weight:700;">🛡️ 防拖堂/防无监考翻书安全门闩已激活（老师在过道巡视无需上台，读秒归零自动开考）</div><div></div>`;
-  } else if (state.stage === 'quiz_old' || (state.stage === 'quiz_new' && state.peekOld && oldIt)) {
+  } else if ((state.stage === 'quiz_old' || (state.stage === 'quiz_new' && state.peekOld)) && oldIt && oldVar) {
     const isPeek = state.stage === 'quiz_new';
     root.innerHTML = `
       <div class="stage-banner banner-quiz-old">
-        <div class="banner-title">⚡ ${isPeek ? '临时回看第1题（倒计时仍在继续！）' : `第1步 · 历史旧点极速快答（写在《通关本》第${String(cur.id).padStart(2,'0')}期·旧点栏）`}</div>
+        <div class="banner-title">⚡ ${isPeek ? '临时回看第1题（倒计时仍在继续！）' : `第1步 · 历史旧点极速快答（写在《通关本》${curEpTag}·旧点栏）`}</div>
         <div class="step-pills">
           <span class="step-pill active">❶ 旧点快答</span>
           <span class="step-pill" onclick="enterQuizNew()">❷ 今日新点</span>
@@ -728,7 +833,7 @@ function renderAll() {
       <div class="card-grid ${quizDiagOld ? 'grid-focus-map' : 'grid-single'}">
         <div class="big-card">
           <div style="display:flex;justify-content:space-between;align-items:center;gap:6px;margin-bottom:8px;flex-wrap:wrap;">
-            <span class="card-tag tag-old" style="margin:0;">🔄 抽检第${String(oldIt.id).padStart(2,'0')}期${oldVar.total > 1 ? ` · 考法${oldVar.idx+1}/${oldVar.total}` : ''}</span>
+            <span class="card-tag tag-old" style="margin:0;">🔄 抽检${formatEpTag(oldIt)}${oldVar.total > 1 ? ` · 考法${oldVar.idx+1}/${oldVar.total}` : ''}</span>
             <div style="display:flex;gap:6px;">
               ${oldVar.total > 1 ? `<button class="nav-btn" style="padding:3px 9px;font-size:12.5px;" onclick="cycleOldVariant()">🔀 换考法</button>` : ''}
               ${state.epIdx > 1 ? `<button class="nav-btn" style="padding:3px 9px;font-size:12.5px;" onclick="rerollOldQuestion()">🎲 换旧题</button>` : ''}
@@ -747,11 +852,11 @@ function renderAll() {
            <button class="act-btn btn-sec" onclick="togglePause()">${state.paused ? '▶ 继续' : '⏸ 暂停'}</button>
            <button class="act-btn btn-sky" onclick="enterQuizNew()">⏭ 提前进第2题（今日新点 ${fmtMMSS(newQuizSec)}）</button>
          </div>`;
-  } else if (state.stage === 'quiz_new') {
-    const showTailCheck = oldIt && state.secLeft <= 35;
+  } else if (state.stage === 'quiz_new' || state.stage === 'quiz_old') {
+    const showTailCheck = oldIt && oldVar && state.secLeft <= 35;
     root.innerHTML = `
       <div class="stage-banner banner-quiz-new">
-        <div class="banner-title">✍️ ${state.epIdx > 0 ? '第2步 · ' : ''}今日新点闭卷全默（第${String(cur.id).padStart(2,'0')}期 · ${cur.target_weakness}）</div>
+        <div class="banner-title">✍️ ${state.epIdx > 0 ? '第2步 · ' : ''}今日新点闭卷全默（${curEpTag} · ${escapeHtml(cur.target_weakness)}）</div>
         <div class="step-pills">
           ${oldIt ? `<span class="step-pill done" onclick="togglePeekOld(true)" title="点击可临时回看第1题">✓ ❶ 旧点已展示(点此回看)</span>` : ''}
           <span class="step-pill active">❷ 今日新点全默</span>
@@ -762,11 +867,11 @@ function renderAll() {
       <div class="card-grid ${quizDiagNew ? 'grid-focus-map' : 'grid-single'}">
         <div class="big-card">
           <div style="display:flex;justify-content:space-between;align-items:center;gap:6px;margin-bottom:8px;">
-            <span class="card-tag tag-new" style="margin:0;">★ 今日主菜 · 第${String(cur.id).padStart(2,'0')}期全默</span>
+            <span class="card-tag tag-new" style="margin:0;">★ 今日主菜 · ${curEpTag}全默</span>
             ${oldIt ? `<button class="nav-btn" style="padding:3px 9px;font-size:12.5px;border-color:#38BDF8;color:#BAE6FD;" onclick="togglePeekOld(true)">👁️ 回看第1题</button>` : ''}
           </div>
           ${renderQuizLines(cur.quiz_prompt, !!quizDiagNew, '#FACC15')}
-          ${showTailCheck ? `<div class="sub-notice" style="border-left-color:#38BDF8;background:rgba(12,74,110,0.45);">🔍 交卷前检查（第1题旧点）：${oldVar.prompt}</div>` : ''}
+          ${showTailCheck ? `<div class="sub-notice" style="border-left-color:#38BDF8;background:rgba(12,74,110,0.45);">🔍 交卷前检查（第1题旧点）：${escapeHtml(oldVar.prompt)}</div>` : ''}
         </div>
         ${quizDiagNew ? `<div class="big-card" style="padding:10px 12px;">${quizDiagNew}</div>` : ''}
       </div>`;
@@ -791,7 +896,7 @@ function renderAll() {
       </div>`;
     bot.innerHTML = `<div style="color:#FDA4AF;font-size:14.5px;font-weight:800;">🔒 防秒抄保护屏：先收黑笔再亮答案，老师可在台下扫视全班换笔情况</div><div></div>`;
   } else {
-    const vMode = (!oldIt && state.ansView === 'old') ? 'new' : state.ansView;
+    const vMode = ((!oldIt || !oldVar) && (state.ansView === 'old' || state.ansView === 'dual')) ? 'new' : state.ansView;
     root.innerHTML = `
       <div class="stage-banner banner-ans">
         <div class="banner-title">🎯 红笔逐字逐图订正（点任意图片可全屏放大）</div>
@@ -800,34 +905,34 @@ function renderAll() {
           <span class="step-pill ${vMode==='new'?'active':''}" onclick="setAnsView('new')">❷ ${oldIt?'第2题(新点)':'今日新点'}巨幅标答</span>
           ${oldIt ? `<span class="step-pill ${vMode==='dual'?'active':''}" onclick="setAnsView('dual')">⊞ 双栏同屏总览</span>` : ''}
         </div>
-        <div style="font-size:clamp(13px,1.7vh,16.5px);color:#A7F3D0;white-space:nowrap;">${state.cls} · 第${String(cur.id).padStart(2,'0')}期</div>
+        <div style="font-size:clamp(13px,1.7vh,16.5px);color:#A7F3D0;white-space:nowrap;">${escapeHtml(state.cls)} · ${curEpTag}</div>
       </div>
-      ${vMode === 'old' && oldIt ? `
+      ${vMode === 'old' && oldIt && oldVar ? `
         <div class="card-grid ${ansDiagOld ? 'grid-focus-map' : 'grid-single'}">
           <div class="big-card">
-            <span class="card-tag tag-old">✅ 第1题（抽检第${String(oldIt.id).padStart(2,'0')}期·考法${oldVar.idx+1}）标准答案</span>
-            <div class="sub-notice" style="margin:0 0 10px 0;border-left-color:#38BDF8;">题目：${oldVar.prompt}</div>
-            <div class="ans-box ${ansDiagOld ? '' : 'no-map'}" style="border-color:#38BDF8;color:#E0F2FE;background:rgba(14,116,144,0.22);">${oldVar.answer}</div>
+            <span class="card-tag tag-old">✅ 第1题（抽检${formatEpTag(oldIt)}·考法${oldVar.idx+1}）标准答案</span>
+            <div class="sub-notice" style="margin:0 0 10px 0;border-left-color:#38BDF8;">题目：${escapeHtml(oldVar.prompt)}</div>
+            <div class="ans-box ${ansDiagOld ? '' : 'no-map'}" style="border-color:#38BDF8;color:#E0F2FE;background:rgba(14,116,144,0.22);">${escapeHtml(oldVar.answer)}</div>
           </div>
           ${ansDiagOld ? `<div class="big-card" style="padding:10px 12px;">${ansDiagOld}</div>` : ''}
-        </div>` : vMode === 'new' ? `
+        </div>` : vMode === 'new' || !oldIt || !oldVar ? `
         <div class="card-grid ${ansDiagNew ? 'grid-focus-map' : 'grid-single'}">
           <div class="big-card">
-            <span class="card-tag tag-ans">✅ ${oldIt?'第2题':'本题'}（第${String(cur.id).padStart(2,'0')}期·${cur.target_weakness}）标准答案</span>
-            <div class="ans-box ${ansDiagNew ? '' : 'no-map'}">${cur.standard_answer}</div>
+            <span class="card-tag tag-ans">✅ ${oldIt?'第2题':'本题'}（${curEpTag}·${escapeHtml(cur.target_weakness)}）标准答案</span>
+            <div class="ans-box ${ansDiagNew ? '' : 'no-map'}">${escapeHtml(cur.standard_answer)}</div>
           </div>
           ${ansDiagNew ? `<div class="big-card" style="padding:10px 12px;">${ansDiagNew}</div>` : ''}
         </div>` : `
         <div class="card-grid grid-dual">
           <div class="big-card">
-            <span class="card-tag tag-old">✅ 第1题（第${String(oldIt.id).padStart(2,'0')}期·旧点快答）标答</span>
+            <span class="card-tag tag-old">✅ 第1题（${formatEpTag(oldIt)}·旧点快答）标答</span>
             ${ansDiagOld}
-            <div class="ans-box ${ansDiagOld ? 'dual-compact' : 'no-map'}" style="border-color:#38BDF8;color:#E0F2FE;background:rgba(14,116,144,0.2);">${oldVar.answer}</div>
+            <div class="ans-box ${ansDiagOld ? 'dual-compact' : 'no-map'}" style="border-color:#38BDF8;color:#E0F2FE;background:rgba(14,116,144,0.2);">${escapeHtml(oldVar.answer)}</div>
           </div>
           <div class="big-card">
-            <span class="card-tag tag-ans">✅ 第2题（第${String(cur.id).padStart(2,'0')}期·今日新点）标答</span>
+            <span class="card-tag tag-ans">✅ 第2题（${curEpTag}·今日新点）标答</span>
             ${ansDiagNew}
-            <div class="ans-box ${ansDiagNew ? 'dual-compact' : 'no-map'}">${cur.standard_answer}</div>
+            <div class="ans-box ${ansDiagNew ? 'dual-compact' : 'no-map'}">${escapeHtml(cur.standard_answer)}</div>
           </div>
         </div>`}
       <div class="warn-strip">⚠️ 请拿红笔逐字逐图订正！凡未全对的同学，今日课后主动带通关本找地理老师背诵销账！</div>`;
@@ -850,19 +955,25 @@ function confirmBindClass(c) {
 function switchClass(c) {
   state.cls = c; localStorage.setItem('geo_cls_v5', c);
   state.epIdx = progress[c] || 0; state.oldIdx = null; state.stage = 'prep';
+  daemonScheduleMeta.todaySlots = null; daemonScheduleMeta.nextSlotTime = '';
+  sanitizeStageForCurrentEp();
   resolvePrepTargetBell(); renderAll();
   callLocalDaemon('/action', { type: 'sync_ep', clsCode: c.replace('班', ''), ep: state.epIdx + 1 });
 }
 function stepEp(d) {
   state.epIdx = Math.max(0, Math.min(bank.length - 1, state.epIdx + d));
   progress[state.cls] = state.epIdx; localStorage.setItem('geo_prog_v5', JSON.stringify(progress));
-  state.oldIdx = null; renderAll();
+  state.oldIdx = null;
+  sanitizeStageForCurrentEp();
+  renderAll();
   callLocalDaemon('/action', { type: 'sync_ep', clsCode: state.cls.replace('班', ''), ep: state.epIdx + 1 });
 }
 function selectEp(v) {
   state.epIdx = parseInt(v, 10) || 0;
   progress[state.cls] = state.epIdx; localStorage.setItem('geo_prog_v5', JSON.stringify(progress));
-  state.oldIdx = null; renderAll();
+  state.oldIdx = null;
+  sanitizeStageForCurrentEp();
+  renderAll();
   callLocalDaemon('/action', { type: 'sync_ep', clsCode: state.cls.replace('班', ''), ep: state.epIdx + 1 });
 }
 
@@ -983,6 +1094,15 @@ function openSettings() {
     const pad = n => String(n).padStart(2, '0');
     dtInp.value = `${defD.getFullYear()}-${pad(defD.getMonth()+1)}-${pad(defD.getDate())}T18:00`;
   }
+  const ctlInp = document.getElementById('ctl-secret-input');
+  if (ctlInp) ctlInp.value = '';
+  const ctlTxt = document.getElementById('ctl-sec-status-txt');
+  if (ctlTxt) {
+    ctlTxt.style.color = daemonScheduleMeta.hasControlSecret ? '#6EE7B7' : '#FDE68A';
+    ctlTxt.textContent = daemonScheduleMeta.hasControlSecret
+      ? '🟢 已配置（HMAC-SHA256 验签生效）'
+      : '⚠️ 未配置（ntfy匿名指令已默认拒收）';
+  }
   syncTopClassAndDndUI();
   updateVerBadge();
   document.getElementById('settings-modal').style.display = 'flex';
@@ -1005,20 +1125,46 @@ async function saveSettings() {
   if (chosenCls !== state.cls) {
     switchClass(chosenCls);
   }
-  await callLocalDaemon('/action', {
+  const ctlInp = document.getElementById('ctl-secret-input');
+  const newCtlSec = ctlInp ? ctlInp.value.trim() : '';
+  const updBody = {
     type: 'update_cfg',
     offsetMin: clockOffsetMin,
     clsCode: chosenCls.replace('班', '')
-  });
+  };
+  if (newCtlSec !== '') updBody.remoteControlSecret = newCtlSec;
+  const updRes = await callLocalDaemon('/action', updBody);
+  if (updRes && typeof updRes.hasControlSecret === 'boolean') {
+    daemonScheduleMeta.hasControlSecret = updRes.hasControlSecret;
+  }
   pushUiPrefsToDaemon();
 
   const np = document.getElementById('new-prep').value.trim(), nq = document.getElementById('new-quiz').value.trim();
   if (np && nq) {
     const na = document.getElementById('new-ans').value.trim() || '见教师讲解';
-    bank.splice(state.epIdx, 0, { id: bank.length+1, series_id: 'CUSTOM', diagram_id: '', module: document.getElementById('new-mod').value.trim()||'临时插播考点', target_weakness: '课堂/作业错点插播', focus_tag: 'both', prep_display: np, quiz_prompt: nq, review_prompt: nq, standard_answer: na, review_answer: na, review_variants: [{prompt: nq, answer: na}] });
-    bank.forEach((it, idx) => it.id = idx + 1);
-    localStorage.setItem('geo_bank_v6', JSON.stringify({items: bank}));
-    document.getElementById('new-prep').value = ''; document.getElementById('new-quiz').value = '';
+    const nextCustomId = Math.max(100, ...bank.map(x => Number(x && x.id) || 0)) + 1;
+    bank.push({
+      id: nextCustomId,
+      custom_uid: 'CUSTOM_' + Date.now(),
+      series_id: 'CUSTOM',
+      diagram_id: '',
+      module: document.getElementById('new-mod').value.trim() || '临时插播考点',
+      target_weakness: '课堂/作业错点插播',
+      focus_tag: 'both',
+      prep_display: np,
+      quiz_prompt: nq,
+      review_prompt: nq,
+      standard_answer: na,
+      review_answer: na,
+      review_variants: [{ prompt: nq, answer: na }]
+    });
+    state.epIdx = bank.length - 1;
+    localStorage.setItem('geo_bank_v6', JSON.stringify({ items: bank, source: 'auto' }));
+    document.getElementById('new-mod').value = '';
+    document.getElementById('new-prep').value = '';
+    document.getElementById('new-quiz').value = '';
+    document.getElementById('new-ans').value = '';
+    showSyncToast(`✅ 已新增独立插播题（插播#${nextCustomId}），原有官方期号保持不变！`);
   }
   closeSettings();
   if (state.stage === 'prep') resolvePrepTargetBell();
@@ -1107,10 +1253,7 @@ async function syncCloudBankNow(manual) {
     const remoteBankObj = JSON.parse(jsonPart);
     if (!Array.isArray(remoteBankObj.items) || !remoteBankObj.items.length) return;
 
-    const customs = bank.filter(x => x && x.series_id === 'CUSTOM');
-    const merged = [...remoteBankObj.items, ...customs];
-    merged.forEach((it, idx) => it.id = idx + 1);
-    bank = merged;
+    bank = mergeOfficialAndCustomBank(remoteBankObj.items, bank);
     const finalVer = String(remoteBankObj.build_version || remoteVer || curVer);
     window.GEO_RUNTIME_VER = finalVer;
     window.GEO_CLOUD_BOARD_BASES = bases;

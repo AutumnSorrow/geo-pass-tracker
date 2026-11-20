@@ -243,7 +243,18 @@
       </div>
       <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding-top:10px;border-top:1px dashed var(--border);flex-wrap:wrap;">
         <button class="btn btn-green" style="padding:8px 14px;font-size:13.5px;" onclick="sendRemoteBoardControl(0, '')">🟢 立即恢复自动弹窗</button>
-        <span id="ctl-send-hint" style="font-size:12px;color:var(--muted);">免跑教室 · 4G/WiFi直达</span>
+        <span id="ctl-send-hint" style="font-size:12px;color:var(--muted);">免跑教室 · 签名防伪直达</span>
+      </div>
+      <div style="margin-top:10px;padding-top:10px;border-top:1px dashed var(--border);">
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:5px;">
+          <label style="font-size:12px;color:#93C5FD;font-weight:700;">🔐 远控防伪签名口令（与黑板设置保持一致，防公网伪造停课）：</label>
+          <span id="ctl-sec-badge" style="font-size:11.5px;font-weight:800;color:#FDE68A;"></span>
+        </div>
+        <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
+          <input class="inp" type="password" id="ctl-secret-quick" style="flex:1;min-width:170px;margin-top:0;padding:6px 9px;font-size:13px;" placeholder="输入与黑板一致的签名口令">
+          <button class="ctl-chip" style="padding:6px 10px;font-size:12.5px;" onclick="genQuickCtlSecret()">🎲 生成</button>
+          <button class="ctl-chip" style="padding:6px 10px;font-size:12.5px;border-color:var(--green);color:#6EE7B7;" onclick="saveQuickCtlSecret()">💾 保存口令</button>
+        </div>
       </div>
     </div>
     <div style="display:flex;justify-content:flex-end;margin-top:12px;">
@@ -265,10 +276,10 @@
       </select>
     </div>
     <div id="cfg-gist">
-      <label style="font-size:13px;color:var(--muted);">访问密钥 Token（仅保存在您本机浏览器）：</label>
-      <input class="inp" type="password" id="gist-token" placeholder="粘贴 ghp_... 或 gho_... 密钥">
-      <label style="font-size:13px;color:var(--muted);display:block;margin-top:8px;">云端账本 Gist ID（首次留空点连接将自动创建专属私有账本！）：</label>
-      <input class="inp" id="gist-id" placeholder="首次留空自动生成，复制填到手机即可双端互通">
+      <label style="font-size:13px;color:var(--muted);">访问密钥 Token（仅保存在您本机浏览器，建议最小权限）：</label>
+      <input class="inp" type="password" id="gist-token" placeholder="粘贴 ghp_... 或 github_pat_... 密钥">
+      <label style="font-size:13px;color:var(--muted);display:block;margin-top:8px;">云端账本 Gist ID（已有账本请填ID，将优先拉取合并绝不覆盖云端数据）：</label>
+      <input class="inp" id="gist-id" placeholder="首次留空自动生成；连接已有账本请粘贴ID">
     </div>
     <div id="cfg-sb" style="display:none;">
       <label style="font-size:13px;color:var(--muted);">Supabase Project URL：</label>
@@ -278,11 +289,15 @@
       <label style="font-size:13px;color:var(--muted);display:block;margin-top:8px;">您的私人同步口令（手机与电脑填相同口令）：</label>
       <input class="inp" id="sb-room" value="qingyun_geo_10_11">
     </div>
+    <div style="margin-top:10px;padding-top:10px;border-top:1px dashed var(--border);">
+      <label style="font-size:13px;color:#93C5FD;display:block;">🔐 教室黑板远控签名口令（可选，开启 ntfy 秒级防伪加密远控）：</label>
+      <input class="inp" type="password" id="cloud-ctl-secret" placeholder="与教室黑板【设置】中填写相同口令即可">
+    </div>
     <div style="display:flex;justify-content:space-between;margin-top:14px;flex-wrap:wrap;gap:8px;">
-      <button class="btn" onclick="pullFromCloud(true)">🔄 立即从云端拉取</button>
+      <button class="btn" onclick="pullFromCloud(true)">🔄 立即从云端拉取合并</button>
       <div style="display:flex;gap:8px;">
         <button class="btn" onclick="document.getElementById('cloud-modal').style.display='none'">关闭</button>
-        <button class="btn btn-green" onclick="saveCloudCfg()">⚡ 保存并连接同步</button>
+        <button class="btn btn-green" onclick="saveCloudCfg()">⚡ 保存并安全同步</button>
       </div>
     </div>
   </div>
@@ -293,27 +308,143 @@
 const BANK = (window.GEO_DEFAULT_BANK && window.GEO_DEFAULT_BANK.items) || [];
 const DIAG_BASE = "./diagrams/";
 
+function escapeHtml(s) {
+  return String(s == null ? "" : s)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
 function initDefaultData() {
   // 按期中真实成绩升序预置槽位（10班前6名为<50分托底生，11班前8名为<50分托底生）
   const s10 = [19,22,24,25,27,30, 31,31,32,35,35,37,39,40,40,43,50,53,53,71];
   const s11 = [21,27,28,28,29,30,30,30, 32,32,33,34,34,36,37,38,43,50,51,52];
   return {
-    updatedAt: Date.now(),
+    updatedAt: 0,
+    isDefaultSeed: true,
     rosters: {
       "10班": s10.map((sc, i) => `10-${String(i+1).padStart(2,'0')}(${sc}分)${i<6?'*':''}`),
       "11班": s11.map((sc, i) => `11-${String(i+1).padStart(2,'0')}(${sc}分)${i<8?'*':''}`)
     },
+    rosterMeta: { "10班": 0, "11班": 0 },
     // records["10班"]["1"] = { "姓名": "pass" | "fail" | "repass" }
-    records: { "10班": {}, "11班": {} }
+    records: { "10班": {}, "11班": {} },
+    // cellMeta["10班"]["1"]["姓名"] = epochMs（用于手机/电脑双端并发无损字段级合并）
+    cellMeta: { "10班": {}, "11班": {} }
   };
 }
 
-let db = JSON.parse(localStorage.getItem("geo_teacher_db_v1") || "null") || initDefaultData();
-let ui = { cls: "10班", tab: "check", epId: 1, openCheats: {} };
-let cloudCfg = JSON.parse(localStorage.getItem("geo_cloud_cfg_v1") || '{"mode":"gist","token":"","gistId":"","sbUrl":"","sbKey":"","sbRoom":"qingyun_geo_10_11"}');
+function isLikelyDefaultSeed(obj) {
+  if (!obj || typeof obj !== "object") return true;
+  if (obj.isDefaultSeed === true) return true;
+  if (obj.isDefaultSeed === false) return false;
+  const r10 = (obj.rosters && obj.rosters["10班"]) || [];
+  const r11 = (obj.rosters && obj.rosters["11班"]) || [];
+  const rec10 = Object.keys((obj.records && obj.records["10班"]) || {});
+  const rec11 = Object.keys((obj.records && obj.records["11班"]) || {});
+  if (rec10.length > 0 || rec11.length > 0) return false;
+  const allPlaceholder = [...r10, ...r11].every(x => /^(10|11)-\d{2}\(\d+分\)\*?$/.test(String(x || "")));
+  return allPlaceholder;
+}
 
-function cleanName(raw) { return raw.replace(/\*$/, "").trim(); }
-function isFocus(raw) { return raw.trim().endsWith("*"); }
+function ensureDbSchema(raw) {
+  const base = initDefaultData();
+  if (!raw || typeof raw !== "object") return base;
+  const out = {
+    updatedAt: Number(raw.updatedAt || 0),
+    isDefaultSeed: isLikelyDefaultSeed(raw),
+    rosters: {
+      "10班": Array.isArray(raw.rosters && raw.rosters["10班"]) ? [...raw.rosters["10班"]] : base.rosters["10班"],
+      "11班": Array.isArray(raw.rosters && raw.rosters["11班"]) ? [...raw.rosters["11班"]] : base.rosters["11班"]
+    },
+    rosterMeta: {
+      "10班": Number((raw.rosterMeta && raw.rosterMeta["10班"]) || (isLikelyDefaultSeed(raw) ? 0 : (raw.updatedAt || 1))),
+      "11班": Number((raw.rosterMeta && raw.rosterMeta["11班"]) || (isLikelyDefaultSeed(raw) ? 0 : (raw.updatedAt || 1)))
+    },
+    records: { "10班": {}, "11班": {} },
+    cellMeta: { "10班": {}, "11班": {} }
+  };
+  const fallbackTs = out.isDefaultSeed ? 0 : (out.updatedAt || 1);
+  for (const cls of ["10班", "11班"]) {
+    const srcRecs = (raw.records && raw.records[cls]) || {};
+    const srcMeta = (raw.cellMeta && raw.cellMeta[cls]) || {};
+    for (const eid of Object.keys(srcRecs)) {
+      const ep = srcRecs[eid];
+      if (!ep || typeof ep !== "object") continue;
+      out.records[cls][eid] = {};
+      out.cellMeta[cls][eid] = {};
+      for (const nm of Object.keys(ep)) {
+        out.records[cls][eid][nm] = ep[nm];
+        out.cellMeta[cls][eid][nm] = Number((srcMeta[eid] && srcMeta[eid][nm]) || fallbackTs);
+      }
+    }
+  }
+  return out;
+}
+
+function mergeTeacherDb(localRaw, remoteRaw) {
+  const loc = ensureDbSchema(localRaw);
+  const rem = ensureDbSchema(remoteRaw);
+  if (loc.isDefaultSeed && !rem.isDefaultSeed) return rem;
+  if (!loc.isDefaultSeed && rem.isDefaultSeed) return loc;
+
+  const merged = ensureDbSchema(null);
+  merged.isDefaultSeed = loc.isDefaultSeed && rem.isDefaultSeed;
+  merged.updatedAt = Math.max(loc.updatedAt || 0, rem.updatedAt || 0);
+
+  for (const cls of ["10班", "11班"]) {
+    const lRm = Number(loc.rosterMeta[cls] || 0);
+    const rRm = Number(rem.rosterMeta[cls] || 0);
+    if (rRm > lRm) {
+      merged.rosters[cls] = [...rem.rosters[cls]];
+      merged.rosterMeta[cls] = rRm;
+    } else {
+      merged.rosters[cls] = [...loc.rosters[cls]];
+      merged.rosterMeta[cls] = lRm;
+    }
+
+    const epSet = new Set([
+      ...Object.keys(loc.records[cls] || {}),
+      ...Object.keys(rem.records[cls] || {})
+    ]);
+    for (const eid of epSet) {
+      const lEp = loc.records[cls][eid] || {};
+      const rEp = rem.records[cls][eid] || {};
+      const lMeta = loc.cellMeta[cls][eid] || {};
+      const rMeta = rem.cellMeta[cls][eid] || {};
+      merged.records[cls][eid] = {};
+      merged.cellMeta[cls][eid] = {};
+      const stuSet = new Set([...Object.keys(lEp), ...Object.keys(rEp)]);
+      for (const nm of stuSet) {
+        const hasL = Object.prototype.hasOwnProperty.call(lEp, nm);
+        const hasR = Object.prototype.hasOwnProperty.call(rEp, nm);
+        const tL = hasL ? Number(lMeta[nm] || loc.updatedAt || 1) : -1;
+        const tR = hasR ? Number(rMeta[nm] || rem.updatedAt || 1) : -1;
+        if (hasR && (!hasL || tR > tL)) {
+          merged.records[cls][eid][nm] = rEp[nm];
+          merged.cellMeta[cls][eid][nm] = tR;
+        } else if (hasL) {
+          merged.records[cls][eid][nm] = lEp[nm];
+          merged.cellMeta[cls][eid][nm] = tL;
+        }
+      }
+    }
+  }
+  return merged;
+}
+
+let db = ensureDbSchema(JSON.parse(localStorage.getItem("geo_teacher_db_v1") || "null"));
+let ui = { cls: "10班", tab: "check", epId: 1, openCheats: {} };
+let cloudCfg = Object.assign(
+  { mode: "gist", token: "", gistId: "", sbUrl: "", sbKey: "", sbRoom: "qingyun_geo_10_11", ctlSecret: "" },
+  JSON.parse(localStorage.getItem("geo_cloud_cfg_v1") || "{}")
+);
+let hasSyncedRemoteOnce = false;
+
+function cleanName(raw) { return String(raw || "").replace(/\*$/, "").trim(); }
+function isFocus(raw) { return String(raw || "").trim().endsWith("*"); }
 
 function countDebts(cls) {
   let cnt = 0;
@@ -325,50 +456,59 @@ function countDebts(cls) {
 }
 
 let syncTimer = null;
-function saveLocalAndSync() {
+function saveLocalAndSync(markReal = true) {
+  if (markReal) db.isDefaultSeed = false;
   db.updatedAt = Date.now();
   localStorage.setItem("geo_teacher_db_v1", JSON.stringify(db));
   render();
   clearTimeout(syncTimer);
-  syncTimer = setTimeout(() => pushToCloud(), 450);
+  syncTimer = setTimeout(() => pushToCloud(false), 450);
 }
 
 function setCls(c) { ui.cls = c; render(); }
 function setTab(t) { ui.tab = t; render(); }
 function setEp(v) { ui.epId = parseInt(v, 10) || 1; render(); }
 
+function setCellRecord(cls, eid, nm, val, ts) {
+  db.records[cls] = db.records[cls] || {};
+  db.records[cls][eid] = db.records[cls][eid] || {};
+  db.cellMeta[cls] = db.cellMeta[cls] || {};
+  db.cellMeta[cls][eid] = db.cellMeta[cls][eid] || {};
+  db.records[cls][eid][nm] = val;
+  db.cellMeta[cls][eid][nm] = ts || Date.now();
+}
+
 function initEpAllPass() {
-  const cls = ui.cls, eid = String(ui.epId);
+  const cls = ui.cls, eid = String(ui.epId), nowTs = Date.now();
   db.records[cls] = db.records[cls] || {};
   db.records[cls][eid] = db.records[cls][eid] || {};
   (db.rosters[cls] || []).forEach(r => {
     const nm = cleanName(r);
-    if (!db.records[cls][eid][nm]) db.records[cls][eid][nm] = "pass";
+    if (!db.records[cls][eid][nm]) setCellRecord(cls, eid, nm, "pass", nowTs);
   });
-  saveLocalAndSync();
+  saveLocalAndSync(true);
 }
 
 function cycleStu(nm) {
-  const cls = ui.cls, eid = String(ui.epId);
+  const cls = ui.cls, eid = String(ui.epId), nowTs = Date.now();
   db.records[cls] = db.records[cls] || {};
   // 若本节尚未初始化，第一次点某人自动将其他人默认设为一次过(pass)，被点者直接标为待补背(fail)！
   if (!db.records[cls][eid]) {
-    db.records[cls][eid] = {};
-    (db.rosters[cls] || []).forEach(r => { db.records[cls][eid][cleanName(r)] = "pass"; });
-    db.records[cls][eid][nm] = "fail";
-    saveLocalAndSync();
+    (db.rosters[cls] || []).forEach(r => { setCellRecord(cls, eid, cleanName(r), "pass", nowTs); });
+    setCellRecord(cls, eid, nm, "fail", nowTs);
+    saveLocalAndSync(true);
     return;
   }
   const cur = db.records[cls][eid][nm] || "pass";
   const next = cur === "pass" ? "fail" : (cur === "fail" ? "repass" : "pass");
-  db.records[cls][eid][nm] = next;
-  saveLocalAndSync();
+  setCellRecord(cls, eid, nm, next, nowTs);
+  saveLocalAndSync(true);
 }
 
 function markRepass(eid, nm) {
   if (db.records[ui.cls] && db.records[ui.cls][eid]) {
-    db.records[ui.cls][eid][nm] = "repass";
-    saveLocalAndSync();
+    setCellRecord(ui.cls, eid, nm, "repass", Date.now());
+    saveLocalAndSync(true);
   }
 }
 
@@ -404,9 +544,9 @@ function render() {
       const st = epMap ? (epMap[nm] || "pass") : "none";
       const clsStr = st==="pass" ? "st-pass" : (st==="fail" ? "st-fail" : (st==="repass" ? "st-repass" : ""));
       const lbl = st==="pass" ? "✓ 一次过" : (st==="fail" ? "🔴 待补背" : (st==="repass" ? "🟡 补背过" : "点错生即记"));
-      return `<div class="stu-card ${clsStr}" onclick="cycleStu('${nm.replace(/'/g,"\\'")}')">
+      return `<div class="stu-card ${clsStr}" data-stu="${escapeHtml(nm)}" onclick="cycleStu(this.dataset.stu)">
         ${foc ? '<span class="focus-star">★托底</span>' : ''}
-        <div class="stu-name">${nm}</div>
+        <div class="stu-name">${escapeHtml(nm)}</div>
         <span class="stu-badge">${lbl}</span>
       </div>`;
     };
@@ -416,7 +556,7 @@ function render() {
         <div class="ep-row">
           <button class="btn" onclick="setEp(Math.max(1, ui.epId-1))">◀</button>
           <select class="ep-sel" onchange="setEp(this.value)">
-            ${BANK.map(it => `<option value="${it.id}" ${it.id===ui.epId?'selected':''}>第${String(it.id).padStart(2,'0')}期｜${it.target_weakness}</option>`).join('')}
+            ${BANK.map(it => `<option value="${it.id}" ${it.id===ui.epId?'selected':''}>第${String(it.id).padStart(2,'0')}期｜${escapeHtml(it.target_weakness)}</option>`).join('')}
           </select>
           <button class="btn" onclick="setEp(Math.min(BANK.length, ui.epId+1))">▶</button>
         </div>
@@ -447,32 +587,33 @@ function render() {
     if (stuDebts.length === 0) {
       root.innerHTML = `<div class="debt-card" style="text-align:center;padding:36px 16px;">
         <div style="font-size:40px;margin-bottom:8px;">🎉</div>
-        <h3 style="color:#6EE7B7;margin-bottom:6px;">${ui.cls} 当前全部销账完毕！</h3>
+        <h3 style="color:#6EE7B7;margin-bottom:6px;">${escapeHtml(ui.cls)} 当前全部销账完毕！</h3>
         <p style="color:var(--muted);font-size:14px;">在「当堂打勾」页点选未过关学生后，会自动汇总到这里供课后听背书销账。</p>
       </div>`;
     } else {
       root.innerHTML = stuDebts.map(sd => `
         <div class="debt-card">
           <div class="debt-head">
-            <div style="font-size:17px;font-weight:800;">${sd.nm} ${sd.foc ? '<span style="color:var(--gold);font-size:13px;">★托底重点</span>' : ''}</div>
+            <div style="font-size:17px;font-weight:800;">${escapeHtml(sd.nm)} ${sd.foc ? '<span style="color:var(--gold);font-size:13px;">★托底重点</span>' : ''}</div>
             <span style="background:var(--red-bg);color:#FDA4AF;border:1px solid var(--red);padding:2px 10px;border-radius:12px;font-size:13px;font-weight:800;">欠 ${sd.owed.length} 期未背</span>
           </div>
           ${sd.owed.map(eid => {
             const it = BANK.find(x => x.id === eid) || {};
             const ckey = `${sd.nm}_${eid}`;
             const isOpen = !!ui.openCheats[ckey];
+            const safeDiag = (it.diagram_id && /^[a-zA-Z0-9_-]+$/.test(it.diagram_id)) ? it.diagram_id : "";
             return `<div class="debt-item">
               <div class="debt-item-row">
-                <div style="font-weight:700;font-size:14.5px;color:#E2E8F0;">第${String(eid).padStart(2,'0')}期 · ${it.target_weakness || ''}</div>
+                <div style="font-weight:700;font-size:14.5px;color:#E2E8F0;">第${String(eid).padStart(2,'0')}期 · ${escapeHtml(it.target_weakness || '')}</div>
                 <div style="display:flex;gap:8px;">
-                  <button class="btn" style="padding:5px 10px;font-size:12.5px;" onclick="toggleCheat('${ckey.replace(/'/g,"\\'")}')">${isOpen ? '🔼 收起标答' : '📖 展开标答小抄'}</button>
-                  <button class="btn btn-green" style="padding:5px 12px;font-size:12.5px;" onclick="markRepass('${eid}','${sd.nm.replace(/'/g,"\\'")}')">✅ 已背过·销账</button>
+                  <button class="btn" style="padding:5px 10px;font-size:12.5px;" data-ckey="${escapeHtml(ckey)}" onclick="toggleCheat(this.dataset.ckey)">${isOpen ? '🔼 收起标答' : '📖 展开标答小抄'}</button>
+                  <button class="btn btn-green" style="padding:5px 12px;font-size:12.5px;" data-eid="${eid}" data-stu="${escapeHtml(sd.nm)}" onclick="markRepass(this.dataset.eid, this.dataset.stu)">✅ 已背过·销账</button>
                 </div>
               </div>
               <div class="cheat-box" style="display:${isOpen ? 'block' : 'none'};">
-                ${it.diagram_id ? `<img src="${DIAG_BASE}${it.diagram_id}_ans.png" alt="标准答案图">` : ''}
-                <div style="font-size:13px;color:var(--gold);font-weight:700;margin-bottom:4px;">【提问】${it.quiz_prompt || ''}</div>
-                <div style="font-size:13.5px;color:#A7F3D0;line-height:1.5;white-space:pre-line;">【标答要点】\n${it.standard_answer || ''}</div>
+                ${safeDiag ? `<img src="${DIAG_BASE}${safeDiag}_ans.png" alt="标准答案图">` : ''}
+                <div style="font-size:13px;color:var(--gold);font-weight:700;margin-bottom:4px;">【提问】${escapeHtml(it.quiz_prompt || '')}</div>
+                <div style="font-size:13.5px;color:#A7F3D0;line-height:1.5;white-space:pre-line;">【标答要点】\n${escapeHtml(it.standard_answer || '')}</div>
               </div>
             </div>`;
           }).join('')}
@@ -492,7 +633,7 @@ function render() {
       const tot = p + rp + fl;
       const rate = tot > 0 ? Math.round((p+rp)/tot*100) + "%" : "-";
       return `<tr>
-        <td style="font-weight:800;color:${foc?'var(--gold)':'#FFF'}">${nm}${foc?' ★':''}</td>
+        <td style="font-weight:800;color:${foc?'var(--gold)':'#FFF'}">${escapeHtml(nm)}${foc?' ★':''}</td>
         <td style="color:#6EE7B7">${p}</td>
         <td style="color:#FDE68A">${rp}</td>
         <td style="color:${fl>0?'#FB7185':'#94A3B8'};font-weight:800;">${fl}</td>
@@ -526,7 +667,7 @@ function renderRosterChips() {
   box.innerHTML = lines.map((raw, idx) => {
     const foc = raw.endsWith("*");
     const nm = raw.replace(/\*$/,"");
-    return `<span onclick="toggleRosterStar(${idx})" style="padding:4px 10px;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;border:1px solid ${foc?'var(--gold)':'var(--border)'};background:${foc?'rgba(250,204,21,0.2)':'#13203B'};color:${foc?'#FEF08A':'#CBD5E1'};">${nm}${foc?' ★':''}</span>`;
+    return `<span onclick="toggleRosterStar(${idx})" style="padding:4px 10px;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;border:1px solid ${foc?'var(--gold)':'var(--border)'};background:${foc?'rgba(250,204,21,0.2)':'#13203B'};color:${foc?'#FEF08A':'#CBD5E1'};">${escapeHtml(nm)}${foc?' ★':''}</span>`;
   }).join('');
 }
 function toggleRosterStar(idx) {
@@ -554,29 +695,80 @@ function smartCleanPaste() {
   }
 }
 
-// 原生零依赖读取 .xlsx / .csv 花名册文件
+// 原生零依赖读取 .xlsx 文件：优先解析 ZIP Central Directory (0x02014b50)，完整兼容 WPS/Excel Online/openpyxl 流式 Data Descriptor
 async function parseXlsxRows(buf) {
   const bytes = new Uint8Array(buf), view = new DataView(buf);
+  const td = new TextDecoder("utf-8");
   const files = {};
-  let i = 0;
-  while (i < bytes.length - 30) {
-    if (view.getUint32(i, true) === 0x04034b50) {
-      const method = view.getUint16(i + 8, true);
-      const cSize = view.getUint32(i + 18, true);
-      const nLen = view.getUint16(i + 26, true), eLen = view.getUint16(i + 28, true);
-      const name = new TextDecoder().decode(bytes.subarray(i + 30, i + 30 + nLen));
-      const start = i + 30 + nLen + eLen;
-      const comp = bytes.subarray(start, start + cSize);
-      if (name.startsWith("xl/sharedStrings") || name.startsWith("xl/worksheets/sheet")) {
-        if (method === 0) files[name] = new TextDecoder().decode(comp);
-        else if (method === 8 && window.DecompressionStream) {
-          const ds = new DecompressionStream("deflate-raw");
-          const wr = ds.writable.getWriter(); wr.write(comp); wr.close();
-          files[name] = await new Response(ds.readable).text();
+
+  async function extractEntry(name, method, comp) {
+    if (!name.startsWith("xl/sharedStrings") && !name.startsWith("xl/worksheets/sheet")) return;
+    if (method === 0) {
+      files[name] = td.decode(comp);
+    } else if (method === 8 && typeof DecompressionStream !== "undefined") {
+      const ds = new DecompressionStream("deflate-raw");
+      const wr = ds.writable.getWriter();
+      wr.write(comp);
+      wr.close();
+      files[name] = await new Response(ds.readable).text();
+    }
+  }
+
+  // 1. 定位 End of Central Directory (0x06054b50)
+  let eocdPos = -1;
+  const minEocd = Math.max(0, bytes.length - 65557);
+  for (let p = bytes.length - 22; p >= minEocd; p--) {
+    if (view.getUint32(p, true) === 0x06054b50) { eocdPos = p; break; }
+  }
+
+  let parsedByCd = false;
+  if (eocdPos >= 0) {
+    const cdSize = view.getUint32(eocdPos + 12, true);
+    const cdOffset = view.getUint32(eocdPos + 16, true);
+    if (cdOffset + cdSize <= bytes.length) {
+      let ptr = cdOffset;
+      const cdEnd = cdOffset + cdSize;
+      while (ptr + 46 <= cdEnd && view.getUint32(ptr, true) === 0x02014b50) {
+        const method = view.getUint16(ptr + 10, true);
+        const cSize = view.getUint32(ptr + 20, true);
+        const nLen = view.getUint16(ptr + 28, true);
+        const eLen = view.getUint16(ptr + 30, true);
+        const cLen = view.getUint16(ptr + 32, true);
+        const lfhOffset = view.getUint32(ptr + 42, true);
+        const name = td.decode(bytes.subarray(ptr + 46, ptr + 46 + nLen));
+        ptr += 46 + nLen + eLen + cLen;
+
+        if (lfhOffset + 30 <= bytes.length && view.getUint32(lfhOffset, true) === 0x04034b50) {
+          const lNameLen = view.getUint16(lfhOffset + 26, true);
+          const lExtraLen = view.getUint16(lfhOffset + 28, true);
+          const dataStart = lfhOffset + 30 + lNameLen + lExtraLen;
+          if (dataStart + cSize <= bytes.length) {
+            await extractEntry(name, method, bytes.subarray(dataStart, dataStart + cSize));
+            parsedByCd = true;
+          }
         }
       }
-      i = start + cSize;
-    } else i++;
+    }
+  }
+
+  // 2. 兜底：若文件缺失 EOCD，则按 Local File Header 线性扫描（兼容普通非流式 ZIP）
+  if (!parsedByCd) {
+    let i = 0;
+    while (i < bytes.length - 30) {
+      if (view.getUint32(i, true) === 0x04034b50) {
+        const method = view.getUint16(i + 8, true);
+        const cSize = view.getUint32(i + 18, true);
+        const nLen = view.getUint16(i + 26, true), eLen = view.getUint16(i + 28, true);
+        const name = td.decode(bytes.subarray(i + 30, i + 30 + nLen));
+        const start = i + 30 + nLen + eLen;
+        if (cSize > 0 && start + cSize <= bytes.length) {
+          await extractEntry(name, method, bytes.subarray(start, start + cSize));
+          i = start + cSize;
+        } else {
+          i++;
+        }
+      } else i++;
+    }
   }
   const docParser = new DOMParser();
   const sst = [];
@@ -651,9 +843,12 @@ async function importExcelRoster(ev) {
       return arr.map((x, idx) => x.nm + (!isNaN(x.sc) && idx < focN ? "*" : ""));
     };
     if (byCls["10班"].length && byCls["11班"].length) {
+      const nowTs = Date.now();
       db.rosters["10班"] = fmtGroup(byCls["10班"], 6);
       db.rosters["11班"] = fmtGroup(byCls["11班"], 8);
-      saveLocalAndSync();
+      db.rosterMeta["10班"] = nowTs;
+      db.rosterMeta["11班"] = nowTs;
+      saveLocalAndSync(true);
       document.getElementById("roster-txt").value = db.rosters[ui.cls].join("\n");
       renderRosterChips();
       alert(`🎉 一键导入成功！\n已自动识别并导入 10班（${db.rosters["10班"].length}人）和 11班（${db.rosters["11班"].length}人）名单！`);
@@ -673,8 +868,9 @@ function saveRoster() {
   const lines = document.getElementById("roster-txt").value.split(/[\r\n,，、;；]+/).map(s=>s.trim()).filter(Boolean);
   if (lines.length > 0) {
     db.rosters[ui.cls] = lines;
+    db.rosterMeta[ui.cls] = Date.now();
     document.getElementById("roster-modal").style.display = "none";
-    saveLocalAndSync();
+    saveLocalAndSync(true);
   }
 }
 
@@ -689,6 +885,8 @@ function openCloudModal() {
   document.getElementById("sb-url").value = cloudCfg.sbUrl || "";
   document.getElementById("sb-key").value = cloudCfg.sbKey || "";
   document.getElementById("sb-room").value = cloudCfg.sbRoom || "qingyun_geo_10_11";
+  const ctlEl = document.getElementById("cloud-ctl-secret");
+  if (ctlEl) ctlEl.value = cloudCfg.ctlSecret || "";
   toggleCloudFields();
   document.getElementById("cloud-modal").style.display = "flex";
 }
@@ -697,25 +895,97 @@ function toggleCloudFields() {
   document.getElementById("cfg-gist").style.display = m === "gist" ? "block" : "none";
   document.getElementById("cfg-sb").style.display = m === "supabase" ? "block" : "none";
 }
+function hasExistingRemoteTarget() {
+  if (location.protocol.startsWith("http") && cloudCfg.mode === "lan") return true;
+  if (cloudCfg.mode === "gist" && cloudCfg.token && cloudCfg.gistId) return true;
+  if (cloudCfg.mode === "supabase" && cloudCfg.sbUrl && cloudCfg.sbKey) return true;
+  return false;
+}
+async function fetchRemoteDbOnly() {
+  if (location.protocol.startsWith("http") && cloudCfg.mode === "lan") {
+    const r = await fetch("/api/state", { cache: "no-store" });
+    if (r.status === 404) return null;
+    if (!r.ok) throw new Error("局域网读取失败");
+    return await r.json();
+  }
+  if (cloudCfg.mode === "gist" && cloudCfg.token && cloudCfg.gistId) {
+    const r = await fetch(`https://api.github.com/gists/${cloudCfg.gistId}`, {
+      cache: "no-store",
+      headers: { "Authorization": `Bearer ${cloudCfg.token}`, "Accept": "application/vnd.github+json" }
+    });
+    if (!r.ok) throw new Error("Gist读取失败(" + r.status + ")");
+    const d = await r.json();
+    const rawContent = d.files && d.files["geo_records.json"] && d.files["geo_records.json"].content;
+    return rawContent ? JSON.parse(rawContent) : null;
+  }
+  if (cloudCfg.mode === "supabase" && cloudCfg.sbUrl && cloudCfg.sbKey) {
+    const r = await fetch(`${cloudCfg.sbUrl}/rest/v1/geo_sync?room_id=eq.${encodeURIComponent(cloudCfg.sbRoom)}&select=payload`, {
+      cache: "no-store",
+      headers: { "apikey": cloudCfg.sbKey, "Authorization": `Bearer ${cloudCfg.sbKey}` }
+    });
+    if (!r.ok) throw new Error("Supabase读取失败(" + r.status + ")");
+    const arr = await r.json();
+    return (arr && arr[0] && arr[0].payload) ? arr[0].payload : null;
+  }
+  return null;
+}
+
 async function saveCloudCfg() {
+  const ctlEl = document.getElementById("cloud-ctl-secret");
   cloudCfg = {
     mode: document.getElementById("cloud-mode").value,
     token: document.getElementById("gist-token").value.trim(),
     gistId: document.getElementById("gist-id").value.trim(),
     sbUrl: document.getElementById("sb-url").value.trim().replace(/\/$/,""),
     sbKey: document.getElementById("sb-key").value.trim(),
-    sbRoom: document.getElementById("sb-room").value.trim() || "qingyun_geo_10_11"
+    sbRoom: document.getElementById("sb-room").value.trim() || "qingyun_geo_10_11",
+    ctlSecret: ctlEl ? ctlEl.value.trim() : (cloudCfg.ctlSecret || "")
   };
   localStorage.setItem("geo_cloud_cfg_v1", JSON.stringify(cloudCfg));
+  hasSyncedRemoteOnce = false;
   document.getElementById("cloud-modal").style.display = "none";
-  await pushToCloud(true);
+
+  // 关键保护：连接已有云账本时必须先拉取合并，严禁新设备用默认假名单覆盖云端真实数据！
+  if (hasExistingRemoteTarget()) {
+    const pulled = await pullFromCloud(true);
+    if (!pulled) return;
+    if (!db.isDefaultSeed) {
+      await pushToCloud(true, true);
+    } else {
+      setSyncPill("🟢 云端已同步", "var(--green)");
+    }
+  } else {
+    await pushToCloud(true, true);
+  }
 }
 
-async function pushToCloud(manual) {
+async function pushToCloud(manual, skipPreMerge) {
   try {
+    if (!skipPreMerge && hasExistingRemoteTarget()) {
+      try {
+        const remoteBefore = await fetchRemoteDbOnly();
+        if (remoteBefore && remoteBefore.rosters) {
+          db = mergeTeacherDb(db, remoteBefore);
+          localStorage.setItem("geo_teacher_db_v1", JSON.stringify(db));
+          hasSyncedRemoteOnce = true;
+          render();
+        }
+      } catch (preErr) {
+        // 新设备尚未拉取过云端时拉取失败，禁止盲推默认数据覆盖云端
+        if (!hasSyncedRemoteOnce && db.isDefaultSeed) throw preErr;
+      }
+    }
+    // 禁止拿未修改的默认假名单去覆盖已有云端账本
+    if (db.isDefaultSeed && hasExistingRemoteTarget()) {
+      setSyncPill("🟢 云端就绪(未改)", "var(--green)");
+      return;
+    }
+
     if (location.protocol.startsWith("http") && cloudCfg.mode === "lan") {
       const r = await fetch("/api/state", { method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(db) });
-      if (r.ok) setSyncPill("🟢 已同步电脑", "var(--green)");
+      if (!r.ok) throw new Error("局域网写入失败(" + r.status + ")");
+      hasSyncedRemoteOnce = true;
+      setSyncPill("🟢 已同步电脑", "var(--green)");
       return;
     }
     if (cloudCfg.mode === "gist" && cloudCfg.token) {
@@ -726,7 +996,7 @@ async function pushToCloud(manual) {
           method: "POST", headers,
           body: JSON.stringify({ description: "高三地理课前通关辅差考核云账本", public: false, files: { "geo_records.json": { content: JSON.stringify(db) } } })
         });
-        if (!res.ok) throw new Error("Gist创建失败");
+        if (!res.ok) throw new Error("Gist创建失败(" + res.status + ")");
         const data = await res.json();
         cloudCfg.gistId = data.id;
         localStorage.setItem("geo_cloud_cfg_v1", JSON.stringify(cloudCfg));
@@ -736,8 +1006,9 @@ async function pushToCloud(manual) {
           method: "PATCH", headers,
           body: JSON.stringify({ files: { "geo_records.json": { content: JSON.stringify(db) } } })
         });
-        if (!res.ok) throw new Error("Gist更新失败");
+        if (!res.ok) throw new Error("Gist更新失败(" + res.status + ")");
       }
+      hasSyncedRemoteOnce = true;
       setSyncPill("🟢 云端已同步", "var(--green)");
     } else if (cloudCfg.mode === "supabase" && cloudCfg.sbUrl && cloudCfg.sbKey) {
       setSyncPill("⏳ 正在同步...", "var(--gold)");
@@ -746,7 +1017,8 @@ async function pushToCloud(manual) {
         headers: { "apikey": cloudCfg.sbKey, "Authorization": `Bearer ${cloudCfg.sbKey}`, "Content-Type": "application/json", "Prefer": "resolution=merge-duplicates" },
         body: JSON.stringify({ room_id: cloudCfg.sbRoom, payload: db, updated_at: new Date().toISOString() })
       });
-      if (!res.ok) throw new Error("Supabase同步失败");
+      if (!res.ok) throw new Error("Supabase同步失败(" + res.status + ")");
+      hasSyncedRemoteOnce = true;
       setSyncPill("🟢 云端已同步", "var(--green)");
     }
   } catch (e) {
@@ -757,24 +1029,21 @@ async function pushToCloud(manual) {
 
 async function pullFromCloud(manual) {
   try {
-    let remote = null;
-    if (location.protocol.startsWith("http") && cloudCfg.mode === "lan") {
-      const r = await fetch("/api/state");
-      if (r.ok) remote = await r.json();
-    } else if (cloudCfg.mode === "gist" && cloudCfg.token && cloudCfg.gistId) {
-      const r = await fetch(`https://api.github.com/gists/${cloudCfg.gistId}`, { headers: { "Authorization": `Bearer ${cloudCfg.token}`, "Accept": "application/vnd.github+json" } });
-      if (r.ok) { const d = await r.json(); remote = JSON.parse(d.files["geo_records.json"].content); }
-    } else if (cloudCfg.mode === "supabase" && cloudCfg.sbUrl && cloudCfg.sbKey) {
-      const r = await fetch(`${cloudCfg.sbUrl}/rest/v1/geo_sync?room_id=eq.${encodeURIComponent(cloudCfg.sbRoom)}&select=payload`, {
-        headers: { "apikey": cloudCfg.sbKey, "Authorization": `Bearer ${cloudCfg.sbKey}` }
-      });
-      if (r.ok) { const arr = await r.json(); if (arr[0]) remote = arr[0].payload; }
+    const remote = await fetchRemoteDbOnly();
+    hasSyncedRemoteOnce = true;
+    if (remote && remote.rosters) {
+      db = mergeTeacherDb(db, remote);
+      localStorage.setItem("geo_teacher_db_v1", JSON.stringify(db));
+      render();
+      setSyncPill(cloudCfg.mode === "lan" ? "🟢 已同步电脑" : "🟢 云端已同步", "var(--green)");
+    } else if (manual) {
+      setSyncPill("🟡 云端暂无数据", "var(--gold)");
     }
-    if (remote && remote.rosters && (manual || (remote.updatedAt || 0) >= (db.updatedAt || 0))) {
-      db = remote; localStorage.setItem("geo_teacher_db_v1", JSON.stringify(db));
-      render(); setSyncPill("🟢 云端已同步", "var(--green)");
-    }
-  } catch (e) { if (manual) alert("拉取失败：" + e.message); }
+    return true;
+  } catch (e) {
+    if (manual) alert("拉取失败：" + e.message);
+    return false;
+  }
 }
 
 function exportSchoolExcel() {
@@ -782,7 +1051,7 @@ function exportSchoolExcel() {
   const maxEp = BANK.length || 28;
   let html = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel"><head><meta charset="UTF-8"></head><body>
   <table border="1" style="border-collapse:collapse;font-family:Microsoft YaHei;font-size:11pt;text-align:center;">
-  <tr><th colspan="${6+maxEp}" style="background:#1E3A8A;color:#FFF;font-size:13pt;height:34px;">青云实验中学高三地理（${cls}）课前通关与背诵销账过程性考核台账</th></tr>
+  <tr><th colspan="${7+maxEp}" style="background:#1E3A8A;color:#FFF;font-size:13pt;height:34px;">青云实验中学高三地理（${escapeHtml(cls)}）课前通关与背诵销账过程性考核台账</th></tr>
   <tr style="background:#DBEAFE;font-weight:bold;height:28px;"><th>序号</th><th>学生姓名</th><th>辅差层级</th><th>一次过关数</th><th>补背销账数</th><th>未销账数</th><th>总达标率</th>`;
   for (let i=1; i<=maxEp; i++) html += `<th>第${String(i).padStart(2,'0')}期</th>`;
   html += `</tr>`;
@@ -798,7 +1067,7 @@ function exportSchoolExcel() {
     }
     const tot = p + rp + fl, rate = tot > 0 ? Math.round((p+rp)/tot*100)+"%" : "-";
     const bg = foc ? "background:#FFF1F2;" : "";
-    html += `<tr style="height:24px;${bg}"><td>${idx+1}</td><td style="font-weight:bold;">${nm}</td><td>${foc?'★核心托底组':'常规组'}</td><td>${p}</td><td>${rp}</td><td style="color:#DC2626;font-weight:bold;">${fl}</td><td style="font-weight:bold;">${rate}</td>${cells}</tr>`;
+    html += `<tr style="height:24px;${bg}"><td>${idx+1}</td><td style="font-weight:bold;">${escapeHtml(nm)}</td><td>${foc?'★核心托底组':'常规组'}</td><td>${p}</td><td>${rp}</td><td style="color:#DC2626;font-weight:bold;">${fl}</td><td style="font-weight:bold;">${rate}</td>${cells}</tr>`;
   });
   html += `</table></body></html>`;
   const a = document.createElement("a");
@@ -904,6 +1173,133 @@ function ingestHbObject(obj) {
   }
 }
 
+const MAX_PAUSE_SPAN_MS = 31 * 86400 * 1000;
+
+// 零依赖纯 JS FIPS 180-4 SHA-256 + RFC 2104 HMAC-SHA256（兼容 HTTPS、局域网 HTTP 与 file://）
+function sha256Bytes(msgBytes) {
+  const K = [
+    0x428a2f98,0x71374491,0xb5c0fbcf,0xe9b5dba5,0x3956c25b,0x59f111f1,0x923f82a4,0xab1c5ed5,
+    0xd807aa98,0x12835b01,0x243185be,0x550c7dc3,0x72be5d74,0x80deb1fe,0x9bdc06a7,0xc19bf174,
+    0xe49b69c1,0xefbe4786,0x0fc19dc6,0x240ca1cc,0x2de92c6f,0x4a7484aa,0x5cb0a9dc,0x76f988da,
+    0x983e5152,0xa831c66d,0xb00327c8,0xbf597fc7,0xc6e00bf3,0xd5a79147,0x06ca6351,0x14292967,
+    0x27b70a85,0x2e1b2138,0x4d2c6dfc,0x53380d13,0x650a7354,0x766a0abb,0x81c2c92e,0x92722c85,
+    0xa2bfe8a1,0xa81a664b,0xc24b8b70,0xc76c51a3,0xd192e819,0xd6990624,0xf40e3585,0x106aa070,
+    0x19a4c116,0x1e376c08,0x2748774c,0x34b0bcb5,0x391c0cb3,0x4ed8aa4a,0x5b9cca4f,0x682e6ff3,
+    0x748f82ee,0x78a5636f,0x84c87814,0x8cc70208,0x90befffa,0xa4506ceb,0xbef9a3f7,0xc67178f2
+  ];
+  const H = [0x6a09e667,0xbb67ae85,0x3c6ef372,0xa54ff53a,0x510e527f,0x9b05688c,0x1f83d9ab,0x5be0cd19];
+  const l = msgBytes.length;
+  const padLen = ((l + 9 + 63) & ~63);
+  const buf = new Uint8Array(padLen);
+  buf.set(msgBytes);
+  buf[l] = 0x80;
+  const dv = new DataView(buf.buffer);
+  const bitLenHi = Math.floor((l * 8) / 0x100000000);
+  const bitLenLo = (l * 8) >>> 0;
+  dv.setUint32(padLen - 8, bitLenHi, false);
+  dv.setUint32(padLen - 4, bitLenLo, false);
+  const W = new Uint32Array(64);
+  for (let off = 0; off < padLen; off += 64) {
+    for (let i = 0; i < 16; i++) W[i] = dv.getUint32(off + i * 4, false);
+    for (let i = 16; i < 64; i++) {
+      const s0 = ((W[i-15] >>> 7) | (W[i-15] << 25)) ^ ((W[i-15] >>> 18) | (W[i-15] << 14)) ^ (W[i-15] >>> 3);
+      const s1 = ((W[i-2] >>> 17) | (W[i-2] << 15)) ^ ((W[i-2] >>> 19) | (W[i-2] << 13)) ^ (W[i-2] >>> 10);
+      W[i] = (W[i-16] + s0 + W[i-7] + s1) >>> 0;
+    }
+    let [a,b,c,d,e,f,g,h] = H;
+    for (let i = 0; i < 64; i++) {
+      const S1 = ((e >>> 6) | (e << 26)) ^ ((e >>> 11) | (e << 21)) ^ ((e >>> 25) | (e << 7));
+      const ch = (e & f) ^ (~e & g);
+      const t1 = (h + S1 + ch + K[i] + W[i]) >>> 0;
+      const S0 = ((a >>> 2) | (a << 30)) ^ ((a >>> 13) | (a << 19)) ^ ((a >>> 22) | (a << 10));
+      const maj = (a & b) ^ (a & c) ^ (b & c);
+      const t2 = (S0 + maj) >>> 0;
+      h = g; g = f; f = e; e = (d + t1) >>> 0;
+      d = c; c = b; b = a; a = (t1 + t2) >>> 0;
+    }
+    H[0]=(H[0]+a)>>>0; H[1]=(H[1]+b)>>>0; H[2]=(H[2]+c)>>>0; H[3]=(H[3]+d)>>>0;
+    H[4]=(H[4]+e)>>>0; H[5]=(H[5]+f)>>>0; H[6]=(H[6]+g)>>>0; H[7]=(H[7]+h)>>>0;
+  }
+  const out = new Uint8Array(32);
+  const odv = new DataView(out.buffer);
+  for (let i = 0; i < 8; i++) odv.setUint32(i * 4, H[i], false);
+  return out;
+}
+
+function hmacSha256Hex(secretStr, messageStr) {
+  const te = new TextEncoder();
+  let keyBytes = te.encode(String(secretStr || ""));
+  if (keyBytes.length > 64) keyBytes = sha256Bytes(keyBytes);
+  const blockKey = new Uint8Array(64);
+  blockKey.set(keyBytes);
+  const ipad = new Uint8Array(64), opad = new Uint8Array(64);
+  for (let i = 0; i < 64; i++) { ipad[i] = blockKey[i] ^ 0x36; opad[i] = blockKey[i] ^ 0x5c; }
+  const msgBytes = te.encode(String(messageStr || ""));
+  const inner = new Uint8Array(64 + msgBytes.length);
+  inner.set(ipad); inner.set(msgBytes, 64);
+  const innerHash = sha256Bytes(inner);
+  const outer = new Uint8Array(64 + 32);
+  outer.set(opad); outer.set(innerHash, 64);
+  const mac = sha256Bytes(outer);
+  return Array.from(mac, b => b.toString(16).padStart(2, "0")).join("");
+}
+
+function buildCanonicalControlString(ctlObj) {
+  const c10 = (ctlObj && ctlObj.classes && ctlObj.classes["10"]) || {};
+  const c11 = (ctlObj && ctlObj.classes && ctlObj.classes["11"]) || {};
+  const part = (k, e) => `${k}:${Number(e.cmd_ts || 0)}:${Number(e.pause_until_ms || 0)}:${String(e.pause_label || "")}`;
+  return `v1|${Number((ctlObj && ctlObj.updated_at) || 0)}|${part("10", c10)}|${part("11", c11)}`;
+}
+
+function verifyControlObject(ctlObj, source) {
+  if (!ctlObj || typeof ctlObj !== "object" || !ctlObj.classes) return false;
+  const secret = String(cloudCfg.ctlSecret || "").trim();
+  if (secret) {
+    if (!ctlObj.sig || typeof ctlObj.sig !== "string") return false;
+    const expected = hmacSha256Hex(secret, buildCanonicalControlString(ctlObj));
+    return ctlObj.sig.toLowerCase() === expected;
+  }
+  // 未设口令时，拒绝公网匿名 ntfy.sh 的未签名消息，防止界面被伪造指令误导
+  return source === "repo";
+}
+
+function updateCtlSecBadge() {
+  const b = document.getElementById("ctl-sec-badge");
+  const inp = document.getElementById("ctl-secret-quick");
+  if (inp) inp.value = cloudCfg.ctlSecret || "";
+  if (!b) return;
+  if (cloudCfg.ctlSecret) {
+    b.style.color = "#6EE7B7";
+    b.textContent = "🟢 已开启 HMAC-SHA256 签名保护";
+  } else {
+    b.style.color = "#FDE68A";
+    b.textContent = "⚠️ 未设口令（ntfy 通道会被黑板拒收）";
+  }
+}
+
+function genQuickCtlSecret() {
+  const bytes = new Uint8Array(18);
+  if (window.crypto && crypto.getRandomValues) crypto.getRandomValues(bytes);
+  else for (let i = 0; i < bytes.length; i++) bytes[i] = Math.floor(Math.random() * 256);
+  const val = "geo_" + Array.from(bytes, b => b.toString(16).padStart(2, "0")).join("");
+  const inp = document.getElementById("ctl-secret-quick");
+  if (inp) { inp.type = "text"; inp.value = val; }
+}
+
+function saveQuickCtlSecret() {
+  const inp = document.getElementById("ctl-secret-quick");
+  if (!inp) return;
+  cloudCfg.ctlSecret = inp.value.trim();
+  localStorage.setItem("geo_cloud_cfg_v1", JSON.stringify(cloudCfg));
+  inp.type = "password";
+  updateCtlSecBadge();
+  const hint = document.getElementById("ctl-send-hint");
+  if (hint) {
+    hint.style.color = "var(--green)";
+    hint.textContent = cloudCfg.ctlSecret ? "✅ 远控签名口令已保存，请在黑板【设置】填入相同口令" : "⚠️ 已清空签名口令";
+  }
+}
+
 async function fetchBoardHeartbeats(manual) {
   try {
     const [hbRes, ctlRes, ghCtlRes] = await Promise.all([
@@ -929,7 +1325,7 @@ async function fetchBoardHeartbeats(manual) {
           const ev = JSON.parse(line);
           if (ev.event === "message" && ev.message) {
             const cObj = JSON.parse(ev.message);
-            if (cObj && (cObj.updated_at || 0) > (remoteCtlCache.updated_at || 0)) {
+            if (verifyControlObject(cObj, "ntfy") && (cObj.updated_at || 0) > (remoteCtlCache.updated_at || 0)) {
               remoteCtlCache = cObj;
               localStorage.setItem("geo_board_ctl_v1", JSON.stringify(remoteCtlCache));
             }
@@ -939,7 +1335,7 @@ async function fetchBoardHeartbeats(manual) {
     }
     if (ghCtlRes && ghCtlRes.ok) {
       const gObj = await ghCtlRes.json();
-      if (gObj && (gObj.updated_at || 0) > (remoteCtlCache.updated_at || 0)) {
+      if (verifyControlObject(gObj, "repo") && (gObj.updated_at || 0) > (remoteCtlCache.updated_at || 0)) {
         remoteCtlCache = gObj;
         localStorage.setItem("geo_board_ctl_v1", JSON.stringify(remoteCtlCache));
       }
@@ -971,6 +1367,7 @@ function openBoardCtlModal(defaultTarget) {
     const pad = n => String(n).padStart(2, "0");
     dtInp.value = `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T18:00`;
   }
+  updateCtlSecBadge();
   document.getElementById("board-ctl-modal").style.display = "flex";
   renderBoardStatusUI();
   fetchBoardHeartbeats(false);
@@ -996,8 +1393,17 @@ async function syncControlSnapshotToRepo(ctlObj) {
 async function sendRemoteBoardControl(untilMs, label) {
   const target = document.getElementById("ctl-target-cls").value;
   const hint = document.getElementById("ctl-send-hint");
-  if (hint) { hint.textContent = "⏳ 正在下发指令..."; hint.style.color = "var(--gold)"; }
   const nowTs = Date.now();
+  if (untilMs > nowTs + MAX_PAUSE_SPAN_MS) {
+    alert("安全熔断：单次考试免打扰最长不可超过 31 天，请重新选择恢复时间。");
+    return;
+  }
+  const secret = String(cloudCfg.ctlSecret || "").trim();
+  if (!secret && !cloudCfg.token) {
+    alert("安全拦截：请先在下方设置【远控防伪签名口令】（或在云同步配置中填入 GitHub Token），黑板端已默认拒收无签名匿名指令。");
+    return;
+  }
+  if (hint) { hint.textContent = "⏳ 正在签名并下发指令..."; hint.style.color = "var(--gold)"; }
   const nextClasses = Object.assign({
     "10": { cmd_ts: 0, pause_until_ms: 0, pause_label: "" },
     "11": { cmd_ts: 0, pause_until_ms: 0, pause_label: "" }
@@ -1008,23 +1414,31 @@ async function sendRemoteBoardControl(untilMs, label) {
     nextClasses[c] = { cmd_ts: nowTs, pause_until_ms: untilMs, pause_label: label };
   });
   const payload = { updated_at: nowTs, classes: nextClasses };
+  if (secret) {
+    payload.sig_ver = 1;
+    payload.sig = hmacSha256Hex(secret, buildCanonicalControlString(payload));
+  }
 
   try {
-    const [ntfyRes, repoOk] = await Promise.all([
-      fetch(`https://ntfy.sh/${CTL_TOPIC}`, { method: "POST", body: JSON.stringify(payload) }).catch(() => null),
-      syncControlSnapshotToRepo(payload)
-    ]);
+    const tasks = [syncControlSnapshotToRepo(payload)];
+    if (secret) {
+      tasks.unshift(fetch(`https://ntfy.sh/${CTL_TOPIC}`, { method: "POST", body: JSON.stringify(payload) }).catch(() => null));
+    } else {
+      tasks.unshift(Promise.resolve(null));
+    }
+    const [ntfyRes, repoOk] = await Promise.all(tasks);
     const ntfyOk = !!(ntfyRes && ntfyRes.ok);
-    if (!ntfyOk && !repoOk) throw new Error("网络发送异常");
+    if (!ntfyOk && !repoOk) throw new Error(secret ? "网络发送异常" : "GitHub 写入失败，且未设远控口令");
     remoteCtlCache = payload;
     localStorage.setItem("geo_board_ctl_v1", JSON.stringify(remoteCtlCache));
     renderBoardStatusUI();
     if (hint) {
       hint.style.color = "var(--green)";
-      hint.textContent = untilMs > nowTs ? `✅ 已设定免打扰至 ${label}（到期自动恢复）` : "✅ 已发送立即恢复自动弹窗指令！";
+      const modeTag = secret ? "已HMAC签名直达" : "已写GitHub快照";
+      hint.textContent = untilMs > nowTs ? `✅ 已设定免打扰至 ${label}（${modeTag}）` : `✅ 已发送恢复自动弹窗指令（${modeTag}）`;
     }
   } catch (e) {
-    if (hint) { hint.style.color = "var(--red)"; hint.textContent = "❌ 发送失败，请检查手机/电脑网络"; }
+    if (hint) { hint.style.color = "var(--red)"; hint.textContent = "❌ 发送失败：" + e.message; }
   }
 }
 
@@ -1041,16 +1455,25 @@ function sendCustomBoardPause() {
   if (!v) { alert("请先选择恢复日期和时间"); return; }
   const ms = new Date(v).getTime();
   if (isNaN(ms) || ms <= Date.now()) { alert("请选择未来的时间点"); return; }
+  if (ms > Date.now() + MAX_PAUSE_SPAN_MS) { alert("单次免打扰最长不可超过 31 天"); return; }
   sendRemoteBoardControl(ms, fmtPauseLabel(ms));
 }
 
-// 支持 #gist=xxx&tk=xxx 手机扫码一键免输配对云端（配对后立即从地址栏擦除密钥保护安全！）
-if (location.hash && location.hash.includes("tk=")) {
+// 支持 #gist=xxx&tk=xxx&ctl=xxx 安全配对（导入本地存储后立即擦除地址栏哈希！）
+if (location.hash && (location.hash.includes("tk=") || location.hash.includes("ctl="))) {
   const hp = new URLSearchParams(location.hash.slice(1));
+  let changed = false;
   if (hp.get("tk")) {
     cloudCfg.mode = "gist";
     cloudCfg.token = hp.get("tk");
     if (hp.get("gist")) cloudCfg.gistId = hp.get("gist");
+    changed = true;
+  }
+  if (hp.get("ctl")) {
+    cloudCfg.ctlSecret = hp.get("ctl");
+    changed = true;
+  }
+  if (changed) {
     localStorage.setItem("geo_cloud_cfg_v1", JSON.stringify(cloudCfg));
     history.replaceState(null, "", location.pathname + location.search);
   }

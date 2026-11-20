@@ -210,6 +210,28 @@ function Get-WeekParity([datetime]$dt, $cfg) {
     } catch { return "odd" }
 }
 
+function Get-SlotDateTime([datetime]$BaseNow, [string]$HmStr) {
+    $ts = [TimeSpan]::ParseExact($HmStr, "hh\:mm", $null)
+    return $BaseNow.Date.Add($ts)
+}
+
+function Get-TodayActiveSlotTimes($cfg, [string]$ClsCode) {
+    $res = @()
+    if (-not $cfg) { return $res }
+    $offNow = [int]$cfg.clock_offset_minutes
+    $nowCal = (Get-Date).AddMinutes($offNow)
+    $wpNow  = Get-WeekParity $nowCal $cfg
+    $dowNow = [int]$nowCal.DayOfWeek; if ($dowNow -eq 0) { $dowNow = 7 }
+    $slotsNow = $cfg.schedules.$ClsCode."$dowNow"
+    if ($slotsNow) {
+        foreach ($s in $slotsNow) {
+            if ($s.week -ne "all" -and $s.week -ne $wpNow) { continue }
+            $res += [string]$s.time
+        }
+    }
+    return $res
+}
+
 function Find-UpcomingSlot($cfg, [string]$ClsCode, [double]$MinFrom = -2.0, [double]$MaxTo = 20.0) {
     $offNow = [int]$cfg.clock_offset_minutes
     $nowCal = (Get-Date).AddMinutes($offNow)
@@ -219,7 +241,7 @@ function Find-UpcomingSlot($cfg, [string]$ClsCode, [double]$MinFrom = -2.0, [dou
     if ($slotsNow) {
         foreach ($s in $slotsNow) {
             if ($s.week -ne "all" -and $s.week -ne $wpNow) { continue }
-            $tObj = [datetime]::ParseExact([string]$s.time, "HH:mm", $null)
+            $tObj = Get-SlotDateTime $nowCal ([string]$s.time)
             $diffM = ($tObj - $nowCal).TotalMinutes
             if ($diffM -ge $MinFrom -and $diffM -le $MaxTo) {
                 return [PSCustomObject]@{
@@ -301,6 +323,12 @@ if ($Mode -eq "Install") {
     $inOff = Read-Host "3. 一体机时间校准：比学校铃声快2分钟填 -2，慢2分钟填 2（准点直接回车填 0）"
     if ($inOff -match "^-?\d+$") { $cfg.clock_offset_minutes = [int]$inOff }
 
+    $curSecHint = if ($cfg.PSObject.Properties['remote_control_secret'] -and [string]$cfg.remote_control_secret) { "已配置" } else { "未配置" }
+    $inCtlSec = (Read-Host "4. 手机远控防伪签名口令（与教师端一致，直接回车保持[$curSecHint]）").Trim()
+    if ($inCtlSec -ne "") {
+        $cfg | Add-Member -NotePropertyName "remote_control_secret" -NotePropertyValue $inCtlSec -Force
+    }
+
     Write-JsonSafe $CfgPath $cfg
     Stop-AllOtherDaemons | Out-Null
     Repair-Shortcuts $cls $true
@@ -334,7 +362,8 @@ if ($Mode -eq "CheckOnce") {
             }
         }
     }
-    Write-Output ("SCHEDULE_OK | Class=${cls}班 | Status=$pauseTxt | Parity=$wp | Idle=$([math]::Round($idleSec,1))s | ActiveSlots=" + ($activeList -join ", "))
+    $secTag = if ($cfg.PSObject.Properties['remote_control_secret'] -and ([string]$cfg.remote_control_secret).Trim()) { "SIGNED_HMAC" } else { "REPO_ONLY_NO_NTFY" }
+    Write-Output ("SCHEDULE_OK | Class=${cls}班 | Status=$pauseTxt | RemoteCtl=$secTag | Parity=$wp | Idle=$([math]::Round($idleSec,1))s | ActiveSlots=" + ($activeList -join ", "))
     exit 0
 }
 
@@ -356,10 +385,12 @@ if (@(Get-ChildItem -Path $StartupCheckDir -Filter "GeoPreClassGuard*.lnk" -Erro
 }
 Ensure-BoardNeverSleeps
 
-$HttpHandler = New-Object System.Net.Http.HttpClientHandler
-$DaemonHttp  = New-Object System.Net.Http.HttpClient($HttpHandler)
-$DaemonHttp.DefaultRequestHeaders.UserAgent.ParseAdd("GeoBoardDaemon/3.1")
-$DaemonHttp.Timeout = [TimeSpan]::FromSeconds(4)
+$MaxPauseSpanMs = [int64]31 * 86400 * 1000
+$script:NeedImmediateHb = $false
+$script:BgHbJob   = $null
+$script:BgCtlJob  = $null
+$script:BgSyncJob = $null
+$script:BgLanJob  = $null
 
 function Get-LocalBuildVer {
     $mf = Read-JsonSafe (Join-Path $ScriptDir "board_manifest.json")
@@ -367,79 +398,221 @@ function Get-LocalBuildVer {
     return "20261118"
 }
 
-function Send-BoardHeartbeat($curCfg, $curState) {
-    if ($NoCloud) { return }
-    try {
-        $cCode = [string]$curCfg.current_blackboard_class
-        $payload = [PSCustomObject]@{
-            cls          = "${cCode}班"
-            clsCode      = $cCode
-            host         = $env:COMPUTERNAME
-            ver          = (Get-LocalBuildVer)
-            ep           = [int]$curState.current_ep
-            pauseUntilMs = [int64]$curState.pause_until_ms
-            pauseLabel   = [string]$curState.pause_label
-            ts           = (Get-NowMs)
-        } | ConvertTo-Json -Compress
-        $content = New-Object System.Net.Http.StringContent($payload, [System.Text.Encoding]::UTF8, "application/json")
-        $DaemonHttp.PostAsync("https://ntfy.sh/$HbTopic", $content).GetAwaiter().GetResult() | Out-Null
-    } catch {}
+function Get-CanonicalControlString($ctlObj) {
+    $upd = if ($ctlObj -and $ctlObj.PSObject.Properties['updated_at'] -and $ctlObj.updated_at) { [int64]$ctlObj.updated_at } else { [int64]0 }
+    $parts = @()
+    foreach ($k in @("10", "11")) {
+        $e = if ($ctlObj -and $ctlObj.PSObject.Properties['classes'] -and $ctlObj.classes -and $ctlObj.classes.PSObject.Properties[$k]) { $ctlObj.classes.$k } else { $null }
+        $cts = if ($e -and $e.PSObject.Properties['cmd_ts'] -and $e.cmd_ts) { [int64]$e.cmd_ts } else { [int64]0 }
+        $pms = if ($e -and $e.PSObject.Properties['pause_until_ms'] -and $e.pause_until_ms) { [int64]$e.pause_until_ms } else { [int64]0 }
+        $plb = if ($e -and $e.PSObject.Properties['pause_label'] -and $e.pause_label) { [string]$e.pause_label } else { "" }
+        $parts += "${k}:${cts}:${pms}:${plb}"
+    }
+    return "v1|${upd}|$($parts[0])|$($parts[1])"
 }
 
-function Sync-RemoteControl($curCfg, $curState) {
-    if ($NoCloud) { return $false }
-    $changed = $false
+function Get-HmacSha256Hex([string]$Secret, [string]$Message) {
+    $keyBytes = [System.Text.Encoding]::UTF8.GetBytes($Secret)
+    $msgBytes = [System.Text.Encoding]::UTF8.GetBytes($Message)
+    $hmac = New-Object System.Security.Cryptography.HMACSHA256 (,$keyBytes)
+    try {
+        $hash = $hmac.ComputeHash($msgBytes)
+        return ([BitConverter]::ToString($hash)).Replace("-", "").ToLowerInvariant()
+    } finally {
+        $hmac.Dispose()
+    }
+}
+
+function Test-ControlObjectAllowed($ctlObj, [string]$Source, $curCfg) {
+    if (-not $ctlObj -or -not $ctlObj.PSObject.Properties['classes'] -or -not $ctlObj.classes) { return $false }
+    $secret = ""
+    if ($curCfg -and $curCfg.PSObject.Properties['remote_control_secret'] -and $curCfg.remote_control_secret) {
+        $secret = ([string]$curCfg.remote_control_secret).Trim()
+    }
+    $allowUnsignedNtfy = $false
+    if ($curCfg -and $curCfg.PSObject.Properties['allow_unsigned_ntfy']) {
+        $allowUnsignedNtfy = [bool]$curCfg.allow_unsigned_ntfy
+    }
+    if ($secret -ne "") {
+        $sig = if ($ctlObj.PSObject.Properties['sig'] -and $ctlObj.sig) { ([string]$ctlObj.sig).Trim().ToLowerInvariant() } else { "" }
+        if ($sig.Length -ne 64) { return $false }
+        $expected = Get-HmacSha256Hex $secret (Get-CanonicalControlString $ctlObj)
+        $diff = 0
+        for ($idx = 0; $idx -lt 64; $idx++) { $diff = $diff -bor ([int]$sig[$idx] -bxor [int]$expected[$idx]) }
+        return ($diff -eq 0)
+    }
+    if ($Source -eq "ntfy") { return $allowUnsignedNtfy }
+    return ($Source -in @("repo", "disk"))
+}
+
+function Apply-RemoteControlCandidates($curCfg, $curState, [array]$TaggedCandidates) {
     $cCode = [string]$curCfg.current_blackboard_class
-    $candidates = @()
-
-    try {
-        $rawLines = $DaemonHttp.GetStringAsync("https://ntfy.sh/$CtlTopic/json?poll=1&since=12h").GetAwaiter().GetResult()
-        if ($rawLines) {
-            foreach ($line in ($rawLines -split "`r?`n")) {
-                if (-not $line.Trim()) { continue }
-                try {
-                    $ev = $line | ConvertFrom-Json
-                    if ($ev.event -eq "message" -and $ev.message) {
-                        $msgObj = $ev.message | ConvertFrom-Json
-                        if ($msgObj) { $candidates += $msgObj }
-                    }
-                } catch {}
-            }
-        }
-    } catch {}
-
-    try {
-        $ghCtlTxt = $DaemonHttp.GetStringAsync("https://autumnsorrow.github.io/geo-pass-tracker/board/board_control.json?t=$(Get-NowMs)").GetAwaiter().GetResult()
-        if ($ghCtlTxt) {
-            $ghCtlObj = $ghCtlTxt | ConvertFrom-Json
-            if ($ghCtlObj) { $candidates += $ghCtlObj }
-        }
-    } catch {}
-
-    $diskCtl = Read-JsonSafe (Join-Path $ScriptDir "board_control.json")
-    if ($diskCtl) { $candidates += $diskCtl }
-
     $bestCmdTs = [int64]$curState.applied_remote_ts
     $winEntry = $null
-    foreach ($c in $candidates) {
-        if ($c.classes -and $c.classes.$cCode) {
+    $nowMs = Get-NowMs
+    $maxAllowedUntil = $nowMs + $MaxPauseSpanMs
+
+    foreach ($item in $TaggedCandidates) {
+        if (-not $item -or -not $item.obj) { continue }
+        $c = $item.obj
+        $src = [string]$item.source
+        if (-not (Test-ControlObjectAllowed $c $src $curCfg)) { continue }
+        if ($c.classes -and $c.classes.PSObject.Properties[$cCode] -and $c.classes.$cCode) {
             $entry = $c.classes.$cCode
             $cts = [int64]$entry.cmd_ts
+            $pUntil = [int64]$entry.pause_until_ms
+            if ($pUntil -gt $maxAllowedUntil) { continue }
             if ($cts -gt $bestCmdTs) {
                 $bestCmdTs = $cts
                 $winEntry = $entry
             }
         }
     }
-
     if ($winEntry) {
         $curState.pause_until_ms = [int64]$winEntry.pause_until_ms
         $curState.pause_label = [string]$winEntry.pause_label
         $curState.applied_remote_ts = $bestCmdTs
         Write-JsonSafe $StatePath $curState
-        $changed = $true
+        return $true
     }
-    return $changed
+    return $false
+}
+
+function Start-AsyncPowerShellJob([scriptblock]$ScriptBlock, [array]$ArgList) {
+    $ps = [powershell]::Create()
+    $null = $ps.AddScript($ScriptBlock)
+    foreach ($a in $ArgList) { $null = $ps.AddArgument($a) }
+    $handle = $ps.BeginInvoke()
+    return [PSCustomObject]@{ Ps = $ps; Handle = $handle; StartedAt = (Get-Date) }
+}
+
+function Complete-AsyncJobIfDone($Job) {
+    if (-not $Job) { return [PSCustomObject]@{ Done = $false; Result = $null } }
+    if (-not $Job.Handle.IsCompleted) { return [PSCustomObject]@{ Done = $false; Result = $null } }
+    $res = $null
+    try { $res = $Job.Ps.EndInvoke($Job.Handle) } catch {}
+    try { $Job.Ps.Dispose() } catch {}
+    return [PSCustomObject]@{ Done = $true; Result = $res }
+}
+
+function Start-AsyncHeartbeat($curCfg, $curState) {
+    if ($NoCloud -or $script:BgHbJob) { return }
+    try {
+        $cCode = [string]$curCfg.current_blackboard_class
+        $epVal = Get-SavedClassEp $curState $cCode
+        $payload = [PSCustomObject]@{
+            cls          = "${cCode}班"
+            clsCode      = $cCode
+            host         = $env:COMPUTERNAME
+            ver          = (Get-LocalBuildVer)
+            ep           = [int]$epVal
+            pauseUntilMs = [int64]$curState.pause_until_ms
+            pauseLabel   = [string]$curState.pause_label
+            ts           = (Get-NowMs)
+        } | ConvertTo-Json -Compress
+        $sb = {
+            param($topic, $jsonBody)
+            try {
+                [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+                Add-Type -AssemblyName System.Net.Http
+                $hc = New-Object System.Net.Http.HttpClient
+                $hc.DefaultRequestHeaders.UserAgent.ParseAdd("GeoBoardDaemon/3.2")
+                $hc.Timeout = [TimeSpan]::FromSeconds(4)
+                $content = New-Object System.Net.Http.StringContent($jsonBody, [System.Text.Encoding]::UTF8, "application/json")
+                $hc.PostAsync("https://ntfy.sh/$topic", $content).GetAwaiter().GetResult() | Out-Null
+                $hc.Dispose()
+            } catch {}
+        }
+        $script:BgHbJob = Start-AsyncPowerShellJob $sb @($HbTopic, $payload)
+    } catch {}
+}
+
+function Start-AsyncRemoteControlFetch {
+    if ($NoCloud -or $script:BgCtlJob) { return }
+    try {
+        $sb = {
+            param($ctlTopic)
+            $out = @()
+            try {
+                [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+                Add-Type -AssemblyName System.Net.Http
+                $hc = New-Object System.Net.Http.HttpClient
+                $hc.DefaultRequestHeaders.UserAgent.ParseAdd("GeoBoardDaemon/3.2")
+                $hc.Timeout = [TimeSpan]::FromSeconds(4)
+                try {
+                    $rawLines = $hc.GetStringAsync("https://ntfy.sh/$ctlTopic/json?poll=1&since=12h").GetAwaiter().GetResult()
+                    if ($rawLines) {
+                        foreach ($line in ($rawLines -split "`r?`n")) {
+                            if (-not $line.Trim()) { continue }
+                            try {
+                                $ev = $line | ConvertFrom-Json
+                                if ($ev.event -eq "message" -and $ev.message) {
+                                    $out += [PSCustomObject]@{ source = "ntfy"; raw = [string]$ev.message }
+                                }
+                            } catch {}
+                        }
+                    }
+                } catch {}
+                try {
+                    $ts = [DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds()
+                    $ghCtlTxt = $hc.GetStringAsync("https://autumnsorrow.github.io/geo-pass-tracker/board/board_control.json?t=$ts").GetAwaiter().GetResult()
+                    if ($ghCtlTxt) {
+                        $out += [PSCustomObject]@{ source = "repo"; raw = [string]$ghCtlTxt }
+                    }
+                } catch {}
+                $hc.Dispose()
+            } catch {}
+            return ,$out
+        }
+        $script:BgCtlJob = Start-AsyncPowerShellJob $sb @($CtlTopic)
+    } catch {}
+}
+
+function Start-AsyncCloudSync([string]$LanUrl = "", [string]$ReplyHost = "", [int]$AckPort = 0, [string]$ClsLabel = "", [string]$TargetVer = "") {
+    if ($NoCloud -and (-not $LanUrl)) { return }
+    if (-not (Test-Path $SyncPath)) { return }
+    if ($LanUrl) {
+        if ($script:BgLanJob) { return }
+    } else {
+        if ($script:BgSyncJob) { return }
+    }
+    $sb = {
+        param($syncScript, $targetDir, $lanBase, $replyIp, $ackPort, $clsLabel)
+        $resStr = ""
+        try {
+            . $syncScript -LibraryOnly
+            $resStr = Invoke-GeoBoardSync -SyncTargetDir $targetDir -SyncLanBaseUrl $lanBase -IsInteractive $false -IsSilent $true
+        } catch { $resStr = "" }
+        if ($replyIp -and $ackPort -gt 0) {
+            try {
+                $u = New-Object System.Net.Sockets.UdpClient
+                $ackMsg = "GEO_ACK|${clsLabel}|$env:COMPUTERNAME|$resStr"
+                $ackBytes = [System.Text.Encoding]::UTF8.GetBytes($ackMsg)
+                $u.Send($ackBytes, $ackBytes.Length, $replyIp, $ackPort) | Out-Null
+                $u.Close()
+            } catch {}
+        }
+        return [string]$resStr
+    }
+    $job = Start-AsyncPowerShellJob $sb @($SyncPath, $ScriptDir, $LanUrl, $ReplyHost, $AckPort, $ClsLabel)
+    if ($LanUrl) {
+        $job | Add-Member -NotePropertyName "TargetVer" -NotePropertyValue $TargetVer -Force
+        $script:BgLanJob = $job
+    } else {
+        $script:BgSyncJob = $job
+    }
+}
+
+function Invoke-HotReloadExit {
+    if ($UdpListener) { try { $UdpListener.Close() } catch {} }
+    if ($ApiListener) { try { $ApiListener.Stop() } catch {} }
+    if ($GlobalMutex) { try { $GlobalMutex.ReleaseMutex(); $GlobalMutex.Dispose() } catch {} }
+    if (Test-Path $VbsPath) {
+        Start-Process -FilePath "wscript.exe" -ArgumentList "//B //NoLogo `"$VbsPath`" HotReload" -WindowStyle Hidden
+    } else {
+        Start-Process -FilePath "powershell.exe" -ArgumentList "-NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File `"$PSCommandPath`" -Mode Daemon -HotReload" -WindowStyle Hidden
+    }
+    exit 0
 }
 
 $ApiListener = $null
@@ -489,19 +662,27 @@ function Handle-LocalApiPending {
                 Write-JsonSafe $StatePath $cSt
                 $cCls = [string]$cCfg.current_blackboard_class
                 $savedEp = Get-SavedClassEp $cSt $cCls
+                $todaySlots = @(Get-TodayActiveSlotTimes $cCfg $cCls)
+                $nearSt = Find-UpcomingSlot $cCfg $cCls 0.0 25.0
+                $hasCtlSec = ($cCfg.PSObject.Properties['remote_control_secret'] -and ([string]$cCfg.remote_control_secret).Trim() -ne "")
                 $respJson = ([PSCustomObject]@{
-                    ok           = $true
-                    clsCode      = $cCls
-                    cls          = "${cCls}班"
-                    ep           = $savedEp
-                    classEp      = $cSt.class_ep
-                    recentOld    = $cSt.recent_old
-                    vcntMap      = $cSt.vcnt_map
-                    uiPrefs      = $cSt.ui_prefs
-                    offsetMin    = [int]$cCfg.clock_offset_minutes
-                    pauseUntilMs = [int64]$cSt.pause_until_ms
-                    pauseLabel   = [string]$cSt.pause_label
-                    ver          = (Get-LocalBuildVer)
+                    ok               = $true
+                    clsCode          = $cCls
+                    cls              = "${cCls}班"
+                    ep               = $savedEp
+                    classEp          = $cSt.class_ep
+                    recentOld        = $cSt.recent_old
+                    vcntMap          = $cSt.vcnt_map
+                    uiPrefs          = $cSt.ui_prefs
+                    offsetMin        = [int]$cCfg.clock_offset_minutes
+                    pauseUntilMs     = [int64]$cSt.pause_until_ms
+                    pauseLabel       = [string]$cSt.pause_label
+                    todaySlots       = $todaySlots
+                    nextSlotTime     = if ($nearSt) { [string]$nearSt.timeStr } else { "" }
+                    anchorMonday     = [string]$cCfg.anchor_monday
+                    anchorWeekParity = [string]$cCfg.anchor_week_parity
+                    hasControlSecret = [bool]$hasCtlSec
+                    ver              = (Get-LocalBuildVer)
                 } | ConvertTo-Json -Depth 6 -Compress)
             } elseif ($method -eq "POST" -and $reqPath -eq "/action") {
                 $idxBody = $reqRaw.IndexOf("`r`n`r`n")
@@ -556,20 +737,28 @@ function Handle-LocalApiPending {
                     Write-JsonSafe $StatePath $cSt
                 } elseif ($act.type -eq "update_cfg") {
                     if ($null -ne $act.offsetMin) { $cCfg.clock_offset_minutes = [int]$act.offsetMin }
+                    if ($act.PSObject.Properties['remoteControlSecret'] -and $null -ne $act.remoteControlSecret) {
+                        $cCfg | Add-Member -NotePropertyName "remote_control_secret" -NotePropertyValue ([string]$act.remoteControlSecret).Trim() -Force
+                    }
                     if ($act.clsCode -in @("10","11") -and $act.clsCode -ne $cCfg.current_blackboard_class) {
-                        $cCfg.current_blackboard_class = [string]$act.clsCode
+                        $newCls = [string]$act.clsCode
+                        $cCfg.current_blackboard_class = $newCls
+                        $cSt.current_ep = Get-SavedClassEp $cSt $newCls
+                        Write-JsonSafe $StatePath $cSt
                         $hasSt = @(Get-ChildItem -Path ([Environment]::GetFolderPath("Startup")) -Filter "GeoPreClassGuard*.lnk" -ErrorAction SilentlyContinue).Count -gt 0
-                        if ($hasSt) { Repair-Shortcuts $cCfg.current_blackboard_class $true }
+                        if ($hasSt) { Repair-Shortcuts $newCls $true }
                         $needHb = $true
                     }
                     Write-JsonSafe $CfgPath $cCfg
                 }
-                if ($needHb) { Send-BoardHeartbeat $cCfg $cSt }
+                if ($needHb) { $script:NeedImmediateHb = $true }
+                $hasCtlSecNow = ($cCfg.PSObject.Properties['remote_control_secret'] -and ([string]$cCfg.remote_control_secret).Trim() -ne "")
                 $respJson = ([PSCustomObject]@{
-                    ok           = $true
-                    clsCode      = [string]$cCfg.current_blackboard_class
-                    pauseUntilMs = [int64]$cSt.pause_until_ms
-                    pauseLabel   = [string]$cSt.pause_label
+                    ok               = $true
+                    clsCode          = [string]$cCfg.current_blackboard_class
+                    pauseUntilMs     = [int64]$cSt.pause_until_ms
+                    pauseLabel       = [string]$cSt.pause_label
+                    hasControlSecret = [bool]$hasCtlSecNow
                 } | ConvertTo-Json -Compress)
             }
 
@@ -589,34 +778,72 @@ $UdpPort = 18766
 $UdpListener = $null
 try { $UdpListener = New-Object System.Net.Sockets.UdpClient($UdpPort) } catch { $UdpListener = $null }
 
-function Run-InProcessCloudSync([string]$LanUrl = "") {
-    if ($NoCloud -and (-not $LanUrl)) { return "" }
-    if (-not (Get-Command Invoke-GeoBoardSync -ErrorAction SilentlyContinue)) { return "" }
-    try {
-        $resStr = Invoke-GeoBoardSync -SyncTargetDir $ScriptDir -SyncLanBaseUrl $LanUrl -IsInteractive $false -IsSilent $true
-        if ($resStr -like "UPDATED_DAEMON*") {
-            if ($UdpListener) { try { $UdpListener.Close() } catch {} }
-            if ($ApiListener) { try { $ApiListener.Stop() } catch {} }
-            if ($GlobalMutex) { try { $GlobalMutex.ReleaseMutex(); $GlobalMutex.Dispose() } catch {} }
-            if (Test-Path $VbsPath) {
-                Start-Process -FilePath "wscript.exe" -ArgumentList "//B //NoLogo `"$VbsPath`" HotReload" -WindowStyle Hidden
-            } else {
-                Start-Process -FilePath "powershell.exe" -ArgumentList "-NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File `"$PSCommandPath`" -Mode Daemon -HotReload" -WindowStyle Hidden
-            }
-            exit 0
-        }
-        return $resStr
-    } catch { return "" }
-}
-
 $lastCloudSync = (Get-Date).AddSeconds(-172)
 $lastHbSent    = (Get-Date).AddSeconds(-892)
 $lastRemoteCtl = (Get-Date).AddSeconds(-170)
-$lastLanVer    = ""
+$script:LastLanVer = ""
+
+function Poll-AsyncJobs {
+    if ($script:BgHbJob) {
+        $hbDone = Complete-AsyncJobIfDone $script:BgHbJob
+        if ($hbDone.Done) { $script:BgHbJob = $null }
+    }
+    if ($script:BgCtlJob) {
+        $ctlDone = Complete-AsyncJobIfDone $script:BgCtlJob
+        if ($ctlDone.Done) {
+            $script:BgCtlJob = $null
+            try {
+                $curCfg = Read-JsonSafe $CfgPath
+                $curSt  = Get-RuntimeState
+                $tagged = @()
+                if ($ctlDone.Result) {
+                    foreach ($row in @($ctlDone.Result)) {
+                        if ($row -and $row.raw) {
+                            try {
+                                $parsed = ([string]$row.raw) | ConvertFrom-Json
+                                if ($parsed) { $tagged += [PSCustomObject]@{ source = [string]$row.source; obj = $parsed } }
+                            } catch {}
+                        }
+                    }
+                }
+                $diskCtl = Read-JsonSafe (Join-Path $ScriptDir "board_control.json")
+                if ($diskCtl) { $tagged += [PSCustomObject]@{ source = "disk"; obj = $diskCtl } }
+                if ($curCfg -and (Apply-RemoteControlCandidates $curCfg $curSt $tagged)) {
+                    $script:NeedImmediateHb = $true
+                }
+            } catch {}
+        }
+    }
+    if ($script:BgSyncJob) {
+        $syDone = Complete-AsyncJobIfDone $script:BgSyncJob
+        if ($syDone.Done) {
+            $script:BgSyncJob = $null
+            $resStr = ($syDone.Result | Select-Object -Last 1) -as [string]
+            if ($resStr -like "UPDATED_DAEMON*") { Invoke-HotReloadExit }
+        }
+    }
+    if ($script:BgLanJob) {
+        $tVer = $script:BgLanJob.TargetVer
+        $lanDone = Complete-AsyncJobIfDone $script:BgLanJob
+        if ($lanDone.Done) {
+            $script:BgLanJob = $null
+            $resStr = ($lanDone.Result | Select-Object -Last 1) -as [string]
+            if ($resStr -and $tVer) { $script:LastLanVer = $tVer }
+            if ($resStr -like "UPDATED_DAEMON*") { Invoke-HotReloadExit }
+        }
+    }
+    if ($script:NeedImmediateHb -and (-not $script:BgHbJob)) {
+        $script:NeedImmediateHb = $false
+        $curCfg = Read-JsonSafe $CfgPath
+        $curSt  = Get-RuntimeState
+        if ($curCfg) { Start-AsyncHeartbeat $curCfg $curSt }
+    }
+}
 
 while ($true) {
     try {
         [IdleWin32]::KeepSystemAwake()
+        Poll-AsyncJobs
         $cfg = Read-JsonSafe $CfgPath
         $st  = Get-RuntimeState
         $nowMs = Get-NowMs
@@ -638,7 +865,7 @@ while ($true) {
                 foreach ($s in $daySlots) {
                     if ($s.week -ne "all" -and $s.week -ne $wp) { continue }
                     $slotTimeStr = [string]$s.time
-                    $targetTime  = [datetime]::ParseExact($slotTimeStr, "HH:mm", $null)
+                    $targetTime  = Get-SlotDateTime $now $slotTimeStr
                     $minsToClass = ($targetTime - $now).TotalMinutes
                     $slotKey     = "$($now.ToString('yyyyMMdd'))_${cls}_$slotTimeStr"
 
@@ -683,15 +910,19 @@ while ($true) {
 
         if (((Get-Date) - $lastRemoteCtl).TotalSeconds -ge 180) {
             $lastRemoteCtl = Get-Date
-            if (Sync-RemoteControl $cfg $st) {
-                Send-BoardHeartbeat $cfg $st
-                $lastHbSent = Get-Date
+            if ($NoCloud) {
+                $diskCtl = Read-JsonSafe (Join-Path $ScriptDir "board_control.json")
+                if ($diskCtl) {
+                    Apply-RemoteControlCandidates $cfg $st @([PSCustomObject]@{ source = "disk"; obj = $diskCtl }) | Out-Null
+                }
+            } else {
+                Start-AsyncRemoteControlFetch
             }
         }
 
         if (((Get-Date) - $lastCloudSync).TotalSeconds -ge 180) {
             $lastCloudSync = Get-Date
-            Run-InProcessCloudSync "" | Out-Null
+            Start-AsyncCloudSync ""
         }
 
         if (((Get-Date) - $lastHbSent).TotalSeconds -ge 900) {
@@ -699,13 +930,14 @@ while ($true) {
             $curHm = (Get-Date).AddMinutes($offset).ToString("HH:mm")
             if ($curHm -ge "06:15" -and $curHm -le "22:10") {
                 $stAfter = Get-RuntimeState
-                Send-BoardHeartbeat $cfg $stAfter
+                Start-AsyncHeartbeat $cfg $stAfter
             }
         }
     } catch {}
 
     for ($i = 0; $i -lt 32; $i++) {
         Handle-LocalApiPending
+        Poll-AsyncJobs
         if ($UdpListener -and $UdpListener.Available -gt 0) {
             try {
                 $remoteEp = New-Object System.Net.IPEndPoint([System.Net.IPAddress]::Any, 0)
@@ -715,14 +947,13 @@ while ($true) {
                     $lanUrl = $Matches[1]
                     $targetVer = $Matches[2]
                     $ackPort = [int]$Matches[3]
-                    $syncRes = if ($targetVer -and $targetVer -eq $lastLanVer) { "UP_TO_DATE|$targetVer" } else {
-                        $r = Run-InProcessCloudSync $lanUrl
-                        if ($r) { $lastLanVer = $targetVer }
-                        $r
+                    if ($targetVer -and $targetVer -eq $script:LastLanVer) {
+                        $ackMsg = "GEO_ACK|${cls}班|$env:COMPUTERNAME|UP_TO_DATE|$targetVer"
+                        $ackBytes = [System.Text.Encoding]::UTF8.GetBytes($ackMsg)
+                        $UdpListener.Send($ackBytes, $ackBytes.Length, $remoteEp.Address.ToString(), $ackPort) | Out-Null
+                    } else {
+                        Start-AsyncCloudSync $lanUrl $remoteEp.Address.ToString() $ackPort "${cls}班" $targetVer
                     }
-                    $ackMsg = "GEO_ACK|${cls}班|$env:COMPUTERNAME|$syncRes"
-                    $ackBytes = [System.Text.Encoding]::UTF8.GetBytes($ackMsg)
-                    $UdpListener.Send($ackBytes, $ackBytes.Length, $remoteEp.Address.ToString(), $ackPort) | Out-Null
                 }
             } catch {}
         }
