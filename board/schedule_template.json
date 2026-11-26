@@ -2,7 +2,7 @@
     "current_blackboard_class":  "10",
     "clock_offset_minutes":  0,
     "trigger_before_minutes":  5,
-    "idle_required_seconds":  90,
+    "idle_required_seconds":  40,
     "anchor_monday":  "2026-11-16",
     "anchor_week_parity":  "odd",
     "note":  "weekday: 1=周一...7=周日；week: all=每周, odd=单周(斜杠左), even=双周(斜杠右)；time为正式开始时间(自动提前5分钟空闲弹窗)",
@@ -48,7 +48,7 @@
                                        ],
                                  "5":  [
                                            {
-                                               "time":  "07:00",
+                                               "time":  "07:10",
                                                "week":  "even",
                                                "label":  "周五早自习(双周)"
                                            },
@@ -107,7 +107,7 @@
                                        ],
                                  "5":  [
                                            {
-                                               "time":  "07:00",
+                                               "time":  "07:10",
                                                "week":  "odd",
                                                "label":  "周五早自习(单周)"
                                            },

@@ -27,6 +27,7 @@ if (Test-Path $SyncPath) {
 
 Add-Type @"
 using System;
+using System.Text;
 using System.Runtime.InteropServices;
 public static class IdleWin32 {
     [StructLayout(LayoutKind.Sequential)]
@@ -38,6 +39,7 @@ public static class IdleWin32 {
     [DllImport("user32.dll")] public static extern IntPtr GetForegroundWindow();
     [DllImport("user32.dll")] public static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint lpdwProcessId);
     [DllImport("user32.dll")] static extern bool GetWindowRect(IntPtr hWnd, out RECT lpRect);
+    [DllImport("user32.dll", CharSet = CharSet.Auto)] static extern int GetClassName(IntPtr hWnd, StringBuilder lpClassName, int nMaxCount);
     [DllImport("user32.dll")] static extern int GetSystemMetrics(int nIndex);
     [DllImport("kernel32.dll")] static extern uint SetThreadExecutionState(uint esFlags);
     [DllImport("user32.dll")] static extern IntPtr PostMessage(IntPtr hWnd, uint Msg, IntPtr wParam, IntPtr lParam);
@@ -49,9 +51,20 @@ public static class IdleWin32 {
         uint diff = unchecked((uint)Environment.TickCount - lii.dwTime);
         return diff / 1000.0;
     }
+    public static string GetForegroundClassName() {
+        IntPtr hwnd = GetForegroundWindow();
+        if (hwnd == IntPtr.Zero) return "";
+        StringBuilder sb = new StringBuilder(128);
+        GetClassName(hwnd, sb, sb.Capacity);
+        return sb.ToString();
+    }
     public static bool IsForegroundFullscreen() {
         IntPtr hwnd = GetForegroundWindow();
         if (hwnd == IntPtr.Zero) return false;
+        StringBuilder sb = new StringBuilder(128);
+        GetClassName(hwnd, sb, sb.Capacity);
+        string cls = sb.ToString();
+        if (cls == "Progman" || cls == "WorkerW" || cls == "Shell_TrayWnd" || cls == "Shell_SecondaryTrayWnd") return false;
         RECT r;
         if (!GetWindowRect(hwnd, out r)) return false;
         int sw = GetSystemMetrics(0), sh = GetSystemMetrics(1);
@@ -255,6 +268,27 @@ function Find-UpcomingSlot($cfg, [string]$ClsCode, [double]$MinFrom = -2.0, [dou
         }
     }
     return $null
+}
+
+function Get-BoardKioskProcesses {
+    try {
+        $profMark = ".board_kiosk_profile"
+        return @(Get-CimInstance Win32_Process -Filter "Name = 'msedge.exe' OR Name = 'chrome.exe'" -ErrorAction SilentlyContinue | Where-Object {
+            $_.CommandLine -and ($_.CommandLine -like "*$profMark*")
+        })
+    } catch { return @() }
+}
+
+function Close-BoardKioskWindows {
+    $procs = Get-BoardKioskProcesses
+    $closed = 0
+    foreach ($p in $procs) {
+        try {
+            Stop-Process -Id $p.ProcessId -Force -ErrorAction SilentlyContinue
+            $closed++
+        } catch {}
+    }
+    return ($closed -gt 0)
 }
 
 function Open-BoardApp([string]$ClsCode, [string]$TargetTime = "", [int]$OffsetMin = 0) {
@@ -864,6 +898,7 @@ function Handle-LocalApiPending {
             $reqPath = if ($parts.Length -gt 1) { ($parts[1] -split "\?")[0] } else { "/" }
 
             $respJson = '{"ok":true}'
+            $shouldCloseKiosk = $false
             if ($method -eq "OPTIONS") {
                 $respJson = ""
             } elseif ($reqPath -eq "/status") {
@@ -903,6 +938,7 @@ function Handle-LocalApiPending {
                 $cSt  = Get-RuntimeState
                 $cCls = [string]$cCfg.current_blackboard_class
                 $needHb = $false
+                $willClose = $false
 
                 if ($act.type -eq "open_osk") {
                     Open-TouchKeyboard | Out-Null
@@ -918,6 +954,7 @@ function Handle-LocalApiPending {
                     $cSt.snooze_until_ms = (Get-NowMs) + ($sec * 1000)
                     $cSt.board_open_ping_ms = 0
                     Write-JsonSafe $StatePath $cSt
+                    if ((Get-BoardKioskProcesses).Count -gt 0) { $shouldCloseKiosk = $true; $willClose = $true }
                 } elseif ($act.type -eq "close_lock") {
                     $near = Find-UpcomingSlot $cCfg $cCls -5.0 25.0
                     if ($near) {
@@ -927,6 +964,7 @@ function Handle-LocalApiPending {
                     $cSt.snooze_slot = ""
                     $cSt.board_open_ping_ms = 0
                     Write-JsonSafe $StatePath $cSt
+                    if ((Get-BoardKioskProcesses).Count -gt 0) { $shouldCloseKiosk = $true; $willClose = $true }
                 } elseif ($act.type -eq "sync_ep") {
                     if ($act.ep -and ([int]$act.ep -ge 1)) {
                         $epVal = [int]$act.ep
@@ -968,6 +1006,7 @@ function Handle-LocalApiPending {
                 $hasCtlSecNow = ($cCfg.PSObject.Properties['remote_control_secret'] -and ([string]$cCfg.remote_control_secret).Trim() -ne "")
                 $respJson = ([PSCustomObject]@{
                     ok               = $true
+                    willClose        = [bool]$willClose
                     clsCode          = [string]$cCfg.current_blackboard_class
                     pauseUntilMs     = [int64]$cSt.pause_until_ms
                     pauseLabel       = [string]$cSt.pause_label
@@ -983,6 +1022,10 @@ function Handle-LocalApiPending {
             $stream.Flush()
         } catch {} finally {
             if ($client) { try { $client.Close() } catch {} }
+        }
+        if ($shouldCloseKiosk) {
+            Start-Sleep -Milliseconds 120
+            Close-BoardKioskWindows | Out-Null
         }
     }
 }
@@ -1082,32 +1125,45 @@ while ($true) {
                     $minsToClass = ($targetTime - $now).TotalMinutes
                     $slotKey     = "$($now.ToString('yyyyMMdd'))_${cls}_$slotTimeStr"
 
-                    if ($st.snooze_slot -eq $slotKey -and $nowMs -ge [int64]$st.snooze_until_ms) {
+                    if ($st.snooze_slot -eq $slotKey) {
+                        if ($nowMs -lt [int64]$st.snooze_until_ms) { continue }
                         $st.snooze_slot = ""
-                        if ($minsToClass -ge -1.5 -and $minsToClass -le 15.0) {
+                        # 延后到期后若距上课不足 90 秒（1.5 分钟），不再强行弹窗打扰上课
+                        if ($minsToClass -ge 1.5 -and $minsToClass -le 15.0) {
                             $st.last_triggered_slot = $slotKey
                             $st.last_triggered_ms = $nowMs
                             Write-JsonSafe $StatePath $st
                             Open-BoardApp $cls $slotTimeStr $offset
                             break
                         } else {
+                            $st.last_triggered_slot = $slotKey
+                            $st.last_triggered_ms = $nowMs
                             Write-JsonSafe $StatePath $st
+                            continue
                         }
                     }
 
                     if ($st.last_triggered_slot -eq $slotKey) { continue }
 
-                    # 严禁正式上课后自动弹窗！正课仅限课前 [0.5 ~ leadMin] 分钟空闲时弹出
-                    $minBound = if ($slotTimeStr -eq "07:00") { -2.0 } else { 0.5 }
-                    $maxBound = if ($slotTimeStr -eq "07:00") { [math]::Max($leadMin, 8.0) } else { $leadMin }
+                    # 严禁临近打铃或上课后自动弹窗！距上课不足 90 秒（1.5 分钟）不再自动弹，避免跳出来只剩 10 秒
+                    $isMorningSlot = ($slotTimeStr -lt "07:30")
+                    $minBound = 1.5
+                    $maxBound = if ($isMorningSlot) { [math]::Max($leadMin, 8.0) } else { $leadMin }
 
                     if ($minsToClass -le $maxBound -and $minsToClass -ge $minBound) {
                         $idleSec = [IdleWin32]::GetIdleSeconds()
                         $fg = Get-ForegroundAppName
+                        $shellApps = @("explorer", "SearchHost", "ShellExperienceHost", "StartMenuExperienceHost", "LockApp")
                         $busyApps = @("POWERPNT", "wpp", "wps", "et", "EasiNote", "HiteBoard", "AcroRd32", "FoxitReader", "PotPlayerMini64", "vlc")
-                        $isFullscreen = [IdleWin32]::IsForegroundFullscreen()
-                        $needIdle = if (($fg -in $busyApps) -or $isFullscreen) { [math]::Max($reqIdle, 120.0) } else { $reqIdle }
-                        if ($slotTimeStr -eq "07:00") { $needIdle = 25.0 }
+                        $isRealFullscreen = ([IdleWin32]::IsForegroundFullscreen()) -and (-not ($fg -in $shellApps))
+                        $isTeachingActive = ($fg -in $busyApps) -or $isRealFullscreen
+                        if ($isMorningSlot) {
+                            $needIdle = 25.0
+                        } elseif ($isTeachingActive) {
+                            $needIdle = [math]::Min([math]::Max($reqIdle, 75.0), 90.0)
+                        } else {
+                            $needIdle = [math]::Min($reqIdle, 35.0)
+                        }
 
                         if ($idleSec -ge $needIdle) {
                             $st.last_triggered_slot = $slotKey
@@ -1148,7 +1204,7 @@ while ($true) {
         }
     } catch {}
 
-    for ($i = 0; $i -lt 32; $i++) {
+    for ($i = 0; $i -lt 8; $i++) {
         Handle-LocalApiPending
         Poll-AsyncJobs
         if ($UdpListener -and $UdpListener.Available -gt 0) {

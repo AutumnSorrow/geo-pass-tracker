@@ -92,138 +92,108 @@
     font-variant-numeric: tabular-nums; background: rgba(0,0,0,0.42);
     padding: 2px 14px; border-radius: 8px; white-space: nowrap; flex-shrink: 0;
   }
-  /* 卡片网格：兼顾左栏清晰分层排布与右栏巨幅地图（新点/标答 40%:60%，短旧点 36%:64%，背书 48%:52%） */
+  /* 卡片网格：兼顾左栏大字舒展排布与右栏巨幅地图（新点/标答 43%:57%，短旧点 40%:60%，背书 48%:52%） */
   .card-grid { flex: 1; min-height: 0; display: grid; gap: 14px; }
   .grid-single { grid-template-columns: 1fr; }
   .grid-dual { grid-template-columns: 1fr 1fr; }
   .grid-prep-map { grid-template-columns: 0.96fr 1.04fr; }
-  .grid-focus-map { grid-template-columns: 0.40fr 0.60fr; }
-  .grid-focus-map-short { grid-template-columns: 0.36fr 0.64fr; }
+  .grid-focus-map { grid-template-columns: 0.43fr 0.57fr; }
+  .grid-focus-map-short { grid-template-columns: 0.40fr 0.60fr; }
   .big-card {
     background: var(--panel); border: 1.5px solid var(--border); border-radius: 14px;
-    padding: 13px 16px; display: flex; flex-direction: column;
+    padding: 12px 15px; display: flex; flex-direction: column;
     box-shadow: 0 8px 20px rgba(0,0,0,0.32); min-height: 0; overflow: hidden;
   }
   .grid-single .big-card { padding: 14px 24px; }
   .card-tag {
-    display: inline-block; font-size: clamp(13px, 1.75vh, 17px); font-weight: 800;
-    padding: 3px 11px; border-radius: 6px; margin-bottom: 8px; width: fit-content; flex-shrink: 0;
+    display: inline-block; font-size: clamp(14px, 1.85vh, 18px); font-weight: 800;
+    padding: 3px 11px; border-radius: 6px; margin-bottom: 7px; width: fit-content; flex-shrink: 0;
   }
   .tag-new { background: rgba(251,191,36,0.18); color: var(--gold); border: 1px solid var(--gold); }
   .tag-old { background: rgba(56,189,248,0.2); color: #BAE6FD; border: 1px solid #38BDF8; }
   .tag-ans { background: rgba(16,185,129,0.2); color: #6EE7B7; border: 1px solid #34D399; }
 
-  /* ==================== 课前准备屏：三层结构化板书 ==================== */
+  /* ==================== 课前准备屏：按本页字数与剩余空间动态铺满 ==================== */
   .pt-wrap {
+    --fit-fs: 26px;
     flex: 1; min-height: 0; display: flex; flex-direction: column;
-    gap: clamp(9px, 1.35vh, 14px); overflow-y: auto; justify-content: flex-start; padding-right: 2px;
+    gap: clamp(6px, 0.95vh, 12px); overflow-y: auto; overflow-x: hidden; justify-content: flex-start; padding-right: 2px;
   }
-  .pt-wrap.no-map { max-width: 1360px; width: 100%; margin: 0 auto; }
+  .pt-wrap.no-map { max-width: 1420px; width: 100%; margin: 0 auto; }
   .pt-lead-bar {
     display: flex; align-items: baseline; flex-wrap: wrap; gap: 6px 10px;
-    padding: 2px 2px 4px 2px; border-bottom: 1px solid rgba(56,189,248,0.22); flex-shrink: 0;
+    padding: 0 2px 4px 2px; border-bottom: 1px solid rgba(56,189,248,0.24); flex-shrink: 0;
   }
-  .pt-lead { font-size: calc(clamp(16px, 2.25vh, 23px) * var(--fscale)); font-weight: 900; color: #93C5FD; }
+  .pt-lead { font-size: calc(clamp(18px, 2.35vh, 26px) * var(--fscale)); font-weight: 900; color: #93C5FD; line-height: 1.2; }
   .pt-lead-note {
-    font-size: calc(clamp(12.5px, 1.65vh, 16.5px) * var(--fscale)); font-weight: 700; color: #BAE6FD;
-    background: rgba(56,189,248,0.14); border: 1px solid rgba(56,189,248,0.34);
-    border-radius: 6px; padding: 1px 9px;
+    font-size: calc(clamp(15px, 1.95vh, 21px) * var(--fscale)); font-weight: 800; color: #E0F2FE;
+    background: rgba(56,189,248,0.18); border: 1px solid rgba(56,189,248,0.45);
+    border-radius: 6px; padding: 1px 9px; line-height: 1.25;
   }
-  .pt-list { display: flex; flex-direction: column; gap: clamp(11px, 1.6vh, 18px); }
-  .pt-wrap.density-airy .pt-list { gap: clamp(14px, 2.15vh, 26px); }
-  .pt-wrap.density-compact .pt-list { gap: clamp(7px, 1.05vh, 11px); }
+  .pt-list { display: flex; flex-direction: column; gap: clamp(7px, 1.1vh, 14px); }
   .pt-list.layout-compact2 {
-    display: grid; grid-template-columns: 1fr 1fr; gap: clamp(10px, 1.5vh, 16px); align-content: start;
+    display: grid; grid-template-columns: 1fr 1fr; gap: clamp(8px, 1.15vh, 14px); align-content: start;
   }
   .pt-card {
-    background: rgba(8, 16, 32, 0.86); border: 1px solid #253B66; border-left: 5px solid var(--gold);
-    border-radius: 11px; padding: clamp(11px, 1.6vh, 18px) clamp(13px, 1.35vw, 19px);
-    display: flex; flex-direction: column; gap: clamp(6px, 0.88vh, 10px);
+    background: rgba(8, 16, 32, 0.88); border: 1px solid #253B66; border-left: 5px solid var(--gold);
+    border-radius: 11px; padding: 0.42em 0.56em;
+    font-size: calc(var(--fit-fs) * var(--fscale));
+    display: flex; flex-direction: column; gap: 0.24em; min-width: 0;
   }
-  .pt-wrap.density-airy .pt-card { padding: clamp(14px, 2.05vh, 23px) clamp(15px, 1.5vw, 22px); gap: clamp(8px, 1.1vh, 12px); }
-  .pt-wrap.density-compact .pt-card { padding: clamp(8px, 1.05vh, 12px) clamp(11px, 1.15vw, 15px); gap: clamp(4px, 0.55vh, 6px); }
-  .pt-list.layout-compact2 .pt-card { padding: clamp(10px, 1.45vh, 16px) clamp(11px, 1.2vw, 16px); gap: clamp(6px, 0.8vh, 9px); }
-  .pt-card.no-map { padding: clamp(15px, 2.1vh, 24px) clamp(18px, 1.8vw, 26px); }
   .pt-card.c1 { border-left-color: #FACC15; } .pt-card.c2 { border-left-color: #38BDF8; }
   .pt-card.c3 { border-left-color: #34D399; } .pt-card.c4 { border-left-color: #FB7185; }
   .pt-hd {
-    font-size: calc(clamp(16px, 2.2vh, 23px) * var(--fscale)); font-weight: 900; line-height: 1.28;
-    display: flex; align-items: center; gap: 7px;
+    font-size: 0.84em; font-weight: 900; line-height: 1.22;
+    display: flex; align-items: center; gap: 6px; overflow-wrap: break-word;
   }
   .pt-card.c1 .pt-hd { color: #FDE047; } .pt-card.c2 .pt-hd { color: #7DD3FC; }
   .pt-card.c3 .pt-hd { color: #6EE7B7; } .pt-card.c4 .pt-hd { color: #FDA4AF; }
-  .pt-card.no-map .pt-hd { font-size: calc(clamp(18.5px, 2.6vh, 28px) * var(--fscale)); }
-  .pt-wrap.density-compact .pt-hd { font-size: calc(clamp(14.5px, 1.92vh, 20.5px) * var(--fscale)); }
-  .pt-list.layout-compact2 .pt-hd { font-size: calc(clamp(15px, 2.05vh, 22px) * var(--fscale)); }
-  .pt-lines { display: flex; flex-direction: column; gap: clamp(5px, 0.72vh, 8px); }
+  .pt-lines { display: flex; flex-direction: column; gap: 0.18em; min-width: 0; }
   .pt-line {
-    font-size: calc(clamp(18px, 2.6vh, 28.5px) * var(--fscale)); line-height: 1.44; font-weight: 800; color: #F8FAFC;
+    font-size: 1em; line-height: 1.38; font-weight: 800; color: #FFFFFF; overflow-wrap: break-word;
   }
-  .pt-wrap.density-airy .pt-line { font-size: calc(clamp(19.5px, 2.85vh, 31px) * var(--fscale)); line-height: 1.48; }
-  .pt-wrap.density-compact .pt-line { font-size: calc(clamp(16px, 2.18vh, 23.5px) * var(--fscale)); line-height: 1.38; }
-  .pt-list.layout-compact2 .pt-line { font-size: calc(clamp(13.5px, 1.82vh, 19.6px) * var(--fscale)); line-height: 1.44; }
-  .pt-card.no-map .pt-line { font-size: calc(clamp(21px, 3.1vh, 34px) * var(--fscale)); line-height: 1.5; }
+  /* 知识性注意/易错点：与正文同级醒目大字 + 高对比亮黄提示框，前后排清晰可见 */
   .pt-note {
-    font-size: calc(clamp(14px, 1.9vh, 20px) * var(--fscale)); line-height: 1.4; font-weight: 700;
-    color: #BAE6FD; background: rgba(14, 116, 144, 0.18); border-left: 3px solid #38BDF8;
-    border-radius: 6px; padding: 5px 10px; margin-top: 2px;
-  }
-  .pt-card.no-map .pt-note { font-size: calc(clamp(16.5px, 2.25vh, 24px) * var(--fscale)); padding: 6px 12px; }
-  .pt-wrap.density-compact .pt-note { font-size: calc(clamp(12.5px, 1.65vh, 17.5px) * var(--fscale)); padding: 3px 8px; }
-  @media (max-height: 800px) {
-    .pt-wrap { gap: 6px; }
-    .pt-lead-bar { padding-bottom: 2px; }
-    .pt-list { gap: 6px; }
-    .pt-wrap.density-airy .pt-list { gap: 9px; }
-    .pt-card { padding: 6px 11px; gap: 3px; }
-    .pt-wrap.density-airy .pt-card { padding: 9px 13px; gap: 5px; }
-    .pt-hd { font-size: calc(14px * var(--fscale)); line-height: 1.2; }
-    .pt-lines { gap: 2px; }
-    .pt-line { font-size: calc(15.2px * var(--fscale)); line-height: 1.32; }
-    .pt-wrap.density-airy .pt-line { font-size: calc(16.8px * var(--fscale)); line-height: 1.36; }
-    .pt-note { font-size: calc(12.2px * var(--fscale)); padding: 2px 8px; line-height: 1.28; }
-    .pt-list.layout-compact2 { gap: 7px; }
-    .pt-list.layout-compact2 .pt-card { padding: 6px 9px; gap: 3px; }
-    .pt-list.layout-compact2 .pt-hd { font-size: calc(13.5px * var(--fscale)); }
-    .pt-list.layout-compact2 .pt-line { font-size: calc(13.2px * var(--fscale)); line-height: 1.32; }
+    font-size: 0.88em; line-height: 1.34; font-weight: 800;
+    color: #FEF08A; background: rgba(250, 204, 21, 0.16);
+    border: 1.5px solid rgba(250, 204, 21, 0.56); border-left: 5px solid #FACC15;
+    border-radius: 8px; padding: 0.24em 0.5em; margin-top: 0.08em; overflow-wrap: break-word;
   }
   .hl {
     background: rgba(250,204,21,0.18); color: #FEF08A; border: 1px solid rgba(250,204,21,0.46);
-    border-radius: 5px; padding: 0 5px; margin: 0 1px;
+    border-radius: 5px; padding: 0 0.18em; margin: 0 1px;
     -webkit-box-decoration-break: clone; box-decoration-break: clone;
   }
-  .hl.nw, .hl-ans.nw { display: inline-block; white-space: nowrap; }
+  .hl.nw, .hl-ans.nw { display: inline-block; white-space: nowrap; max-width: 100%; }
 
-  /* ==================== 闭卷默写屏：顶部自然起排 + 独立任务编号卡 ==================== */
+  /* ==================== 闭卷默写屏：按字数自动撑满最大字号 ==================== */
   .quiz-box {
-    display: flex; flex-direction: column; gap: clamp(10px, 1.5vh, 16px);
-    flex: 1; min-height: 0; justify-content: flex-start; overflow-y: auto; padding-top: 4px; padding-right: 2px;
+    --fit-fs: 30px;
+    display: flex; flex-direction: column; gap: clamp(8px, 1.25vh, 15px);
+    flex: 1; min-height: 0; justify-content: flex-start; overflow-y: auto; overflow-x: hidden;
+    padding-top: 2px; padding-right: 2px;
   }
-  .quiz-box.no-map { max-width: 1320px; width: 100%; margin: 0 auto; gap: clamp(14px, 2.1vh, 22px); padding-top: 8px; }
+  .quiz-box.no-map { max-width: 1400px; width: 100%; margin: 0 auto; gap: clamp(12px, 1.8vh, 22px); padding-top: 4px; }
   .q-ctx {
-    display: flex; align-items: center; gap: 7px; flex-shrink: 0;
-    font-size: calc(clamp(14.5px, 1.98vh, 21px) * var(--fscale)); font-weight: 800; color: #BAE6FD;
-    background: rgba(14, 116, 144, 0.16); border: 1px solid rgba(56, 189, 248, 0.34);
-    border-radius: 9px; padding: clamp(6px, 0.9vh, 10px) 13px; line-height: 1.35;
+    display: flex; align-items: center; gap: 8px; flex-shrink: 0;
+    font-size: calc(clamp(18px, calc(var(--fit-fs) * 0.72), 34px) * var(--fscale));
+    font-weight: 800; color: #E0F2FE;
+    background: rgba(14, 116, 144, 0.22); border: 1.5px solid rgba(56, 189, 248, 0.42);
+    border-radius: 10px; padding: 0.28em 0.6em; line-height: 1.3;
   }
-  .q-ctx.theme-new { color: #FDE68A; background: rgba(180, 83, 9, 0.18); border-color: rgba(250, 204, 21, 0.38); }
-  .quiz-box.no-map .q-ctx { font-size: calc(clamp(17px, 2.3vh, 25px) * var(--fscale)); padding: 9px 16px; }
-  .q-list { display: flex; flex-direction: column; gap: clamp(11px, 1.65vh, 18px); }
-  .quiz-box.density-airy .q-list { gap: clamp(14px, 2.2vh, 24px); }
-  .quiz-box.density-compact .q-list { gap: clamp(8px, 1.15vh, 12px); }
+  .q-ctx.theme-new { color: #FEF08A; background: rgba(180, 83, 9, 0.22); border-color: rgba(250, 204, 21, 0.48); }
+  .q-list { display: flex; flex-direction: column; gap: clamp(9px, 1.4vh, 18px); }
   .q-task {
-    background: rgba(8, 16, 32, 0.86); border: 1px solid #243B67; border-left: 5px solid var(--gold);
-    border-radius: 12px; padding: clamp(11px, 1.65vh, 18px) clamp(12px, 1.35vw, 18px);
-    display: flex; align-items: flex-start; gap: clamp(10px, 1.1vw, 14px);
+    background: rgba(8, 16, 32, 0.88); border: 1px solid #243B67; border-left: 5px solid var(--gold);
+    border-radius: 12px; padding: 0.44em 0.56em;
+    font-size: calc(var(--fit-fs) * var(--fscale));
+    display: flex; align-items: flex-start; gap: 0.42em; min-width: 0;
   }
   .q-task.theme-old { border-left-color: #38BDF8; }
-  .quiz-box.density-airy .q-task { padding: clamp(14px, 2.1vh, 22px) clamp(14px, 1.5vw, 20px); }
-  .quiz-box.density-compact .q-task { padding: clamp(9px, 1.25vh, 13px) clamp(11px, 1.2vw, 15px); }
-  .quiz-box.no-map .q-task { padding: clamp(16px, 2.35vh, 26px) clamp(20px, 2vw, 28px); gap: 16px; }
   .q-num {
-    width: clamp(30px, 3.6vh, 40px); height: clamp(30px, 3.6vh, 40px); border-radius: 10px;
-    display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin-top: 2px;
-    font-size: calc(clamp(16px, 2.2vh, 23px) * var(--fscale)); font-weight: 900;
+    width: 1.24em; height: 1.24em; min-width: 30px; min-height: 30px; border-radius: 0.28em;
+    display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin-top: 0.08em;
+    font-size: 0.82em; font-weight: 900;
     background: linear-gradient(135deg, #F59E0B, #FACC15); color: #3B1806;
     box-shadow: 0 2px 8px rgba(250, 204, 21, 0.28);
   }
@@ -231,28 +201,25 @@
     background: linear-gradient(135deg, #0284C7, #38BDF8); color: #052238;
     box-shadow: 0 2px 8px rgba(56, 189, 248, 0.28);
   }
-  .quiz-box.no-map .q-num { width: clamp(36px, 4.4vh, 48px); height: clamp(36px, 4.4vh, 48px); font-size: calc(clamp(20px, 2.7vh, 28px) * var(--fscale)); }
-  .q-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: clamp(4px, 0.65vh, 7px); }
+  .q-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 0.18em; }
   .q-title {
-    font-size: calc(clamp(16px, 2.2vh, 23px) * var(--fscale)); font-weight: 900; color: #FDE047; line-height: 1.28;
+    font-size: 0.78em; font-weight: 900; color: #FDE047; line-height: 1.22; overflow-wrap: break-word;
   }
   .q-task.theme-old .q-title { color: #7DD3FC; }
-  .quiz-box.no-map .q-title { font-size: calc(clamp(19px, 2.65vh, 28px) * var(--fscale)); }
   .q-body {
-    font-size: calc(clamp(18.5px, 2.68vh, 29px) * var(--fscale)); line-height: 1.46; font-weight: 800; color: #FFFFFF;
+    font-size: 1em; line-height: 1.38; font-weight: 800; color: #FFFFFF; overflow-wrap: break-word;
   }
-  .quiz-box.density-airy .q-body { font-size: calc(clamp(20px, 2.95vh, 32px) * var(--fscale)); line-height: 1.5; }
-  .quiz-box.density-compact .q-body { font-size: calc(clamp(17px, 2.38vh, 25px) * var(--fscale)); line-height: 1.42; }
-  .quiz-box.no-map .q-body { font-size: calc(clamp(22px, 3.2vh, 36px) * var(--fscale)); line-height: 1.52; }
   .q-code {
-    display: inline-block; padding: 0 6px; margin: 0 2px; border-radius: 6px; font-weight: 900;
-    background: rgba(250, 204, 21, 0.18); color: #FEF08A; border: 1px solid rgba(250, 204, 21, 0.5);
+    display: inline; padding: 0 0.2em; margin: 0 2px; border-radius: 6px; font-weight: 900;
+    background: rgba(250, 204, 21, 0.2); color: #FEF08A; border: 1.5px solid rgba(250, 204, 21, 0.55);
+    -webkit-box-decoration-break: clone; box-decoration-break: clone;
   }
+  .q-code.nw { display: inline-block; white-space: nowrap; max-width: 100%; }
   .q-task.theme-old .q-code, .q-ctx.theme-old .q-code {
-    background: rgba(56, 189, 248, 0.18); color: #E0F2FE; border-color: rgba(56, 189, 248, 0.5);
+    background: rgba(56, 189, 248, 0.2); color: #E0F2FE; border-color: rgba(56, 189, 248, 0.55);
   }
   .q-ctx.theme-new .q-code {
-    background: rgba(250, 204, 21, 0.2); color: #FEF08A; border-color: rgba(250, 204, 21, 0.55);
+    background: rgba(250, 204, 21, 0.22); color: #FEF08A; border-color: rgba(250, 204, 21, 0.58);
   }
 
   /* 地图与矢量SVG弹性容器 */
@@ -269,59 +236,50 @@
     padding: 3px 10px; font-size: clamp(12px, 1.5vh, 14px); font-weight: 800; pointer-events: none;
   }
 
-  /* ==================== 红笔订正标答屏：与题号一一对应的分条标答卡 ==================== */
+  /* ==================== 红笔订正标答屏：按字数自动撑满最大字号 ==================== */
   .ans-wrap {
+    --fit-fs: 28px;
     flex: 1; min-height: 0; display: flex; flex-direction: column;
-    gap: clamp(11px, 1.6vh, 18px); overflow-y: auto; justify-content: flex-start; padding-right: 2px;
+    gap: clamp(8px, 1.25vh, 15px); overflow-y: auto; overflow-x: hidden; justify-content: flex-start; padding-right: 2px;
   }
-  .ans-wrap.no-map { max-width: 1320px; width: 100%; margin: 0 auto; gap: clamp(14px, 2.1vh, 24px); }
-  .ans-wrap.density-airy { gap: clamp(14px, 2.1vh, 24px); }
-  .ans-wrap.density-compact { gap: clamp(7px, 1.05vh, 11px); }
+  .ans-wrap.no-map { max-width: 1400px; width: 100%; margin: 0 auto; gap: clamp(12px, 1.8vh, 22px); }
   .ans-card {
-    background: rgba(6, 78, 59, 0.24); border: 1.5px solid rgba(52, 211, 153, 0.52); border-left: 5px solid var(--emerald);
-    border-radius: 11px; padding: clamp(11px, 1.6vh, 18px) clamp(13px, 1.4vw, 19px);
-    display: flex; flex-direction: column; gap: clamp(5px, 0.78vh, 9px);
+    background: rgba(6, 78, 59, 0.26); border: 1.5px solid rgba(52, 211, 153, 0.55); border-left: 5px solid var(--emerald);
+    border-radius: 11px; padding: 0.42em 0.56em;
+    font-size: calc(var(--fit-fs) * var(--fscale));
+    display: flex; flex-direction: column; gap: 0.22em; min-width: 0;
   }
   .ans-card.theme-old {
-    background: rgba(14, 116, 144, 0.22); border-color: rgba(56, 189, 248, 0.55); border-left-color: #38BDF8;
+    background: rgba(14, 116, 144, 0.24); border-color: rgba(56, 189, 248, 0.58); border-left-color: #38BDF8;
   }
-  .ans-wrap.density-airy .ans-card { padding: clamp(14px, 2.05vh, 22px) clamp(15px, 1.5vw, 22px); }
-  .ans-wrap.density-compact .ans-card { padding: clamp(8px, 1.05vh, 12px) clamp(11px, 1.2vw, 15px); gap: 4px; }
-  .ans-wrap.no-map .ans-card { padding: clamp(15px, 2.2vh, 24px) clamp(19px, 1.9vw, 26px); }
   .ans-hd {
-    font-size: calc(clamp(15px, 2.08vh, 22px) * var(--fscale)); font-weight: 900; color: #6EE7B7; line-height: 1.28;
+    font-size: 0.82em; font-weight: 900; color: #6EE7B7; line-height: 1.22; overflow-wrap: break-word;
   }
   .ans-card.theme-old .ans-hd { color: #7DD3FC; }
-  .ans-wrap.no-map .ans-hd { font-size: calc(clamp(18px, 2.5vh, 27px) * var(--fscale)); }
-  .ans-lines { display: flex; flex-direction: column; gap: clamp(5px, 0.68vh, 8px); }
+  .ans-lines { display: flex; flex-direction: column; gap: 0.18em; min-width: 0; }
   .ans-line {
-    font-size: calc(clamp(17.5px, 2.52vh, 27.5px) * var(--fscale)); line-height: 1.46; font-weight: 800; color: #ECFDF5;
+    font-size: 1em; line-height: 1.4; font-weight: 800; color: #ECFDF5; overflow-wrap: break-word;
   }
   .ans-card.theme-old .ans-line { color: #F0F9FF; }
-  .ans-wrap.density-airy .ans-line { font-size: calc(clamp(19px, 2.78vh, 30px) * var(--fscale)); line-height: 1.5; }
-  .ans-wrap.density-compact .ans-line { font-size: calc(clamp(15.5px, 2.12vh, 23px) * var(--fscale)); line-height: 1.38; }
-  .ans-wrap.no-map .ans-line { font-size: calc(clamp(21px, 3.05vh, 34px) * var(--fscale)); line-height: 1.54; }
   .hl-ans {
-    background: rgba(250, 204, 21, 0.2); color: #FEF08A; border-bottom: 2px solid rgba(250, 204, 21, 0.65);
-    border-radius: 4px; padding: 0 4px; margin: 0 1px;
+    background: rgba(250, 204, 21, 0.22); color: #FEF08A; border-bottom: 2px solid rgba(250, 204, 21, 0.72);
+    border-radius: 4px; padding: 0 0.16em; margin: 0 1px;
     -webkit-box-decoration-break: clone; box-decoration-break: clone;
   }
-  .ans-wrap.dual-compact { flex: 0 0 auto; margin-top: 8px; max-height: 33vh; gap: 6px; }
-  .ans-wrap.dual-compact .ans-card { padding: 7px 11px; gap: 3px; border-radius: 9px; }
-  .ans-wrap.dual-compact .ans-hd { font-size: calc(clamp(13px, 1.65vh, 17px) * var(--fscale)); }
-  .ans-wrap.dual-compact .ans-line { font-size: calc(clamp(14.5px, 1.95vh, 20.5px) * var(--fscale)); line-height: 1.36; }
+  .ans-wrap.dual-compact { flex: 0 1 40%; margin-top: 8px; max-height: 40vh; gap: 6px; }
+  .ans-wrap.dual-compact .ans-card { padding: 0.36em 0.5em; gap: 0.16em; border-radius: 9px; }
   .ans-prompt-bar {
-    background: rgba(14, 116, 144, 0.16); border-left: 4px solid #38BDF8; padding: 6px 11px; border-radius: 8px;
-    font-size: calc(clamp(13px, 1.72vh, 17.5px) * var(--fscale)); color: #E0F2FE; font-weight: 700;
-    margin-bottom: 8px; flex-shrink: 0; line-height: 1.38;
+    background: rgba(14, 116, 144, 0.2); border-left: 4px solid #38BDF8; padding: 6px 12px; border-radius: 8px;
+    font-size: calc(clamp(16px, 2.15vh, 22px) * var(--fscale)); color: #E0F2FE; font-weight: 800;
+    margin-bottom: 8px; flex-shrink: 0; line-height: 1.32;
   }
   .sub-notice {
-    background: var(--panel-alt); border-left: 4px solid var(--gold); padding: 8px 12px; border-radius: 8px;
-    font-size: calc(clamp(13.5px, 1.85vh, 19px) * var(--fscale)); color: #F1F5F9; font-weight: 700; margin-top: 8px; flex-shrink: 0;
+    background: var(--panel-alt); border-left: 5px solid var(--gold); padding: 8px 13px; border-radius: 8px;
+    font-size: calc(clamp(16.5px, 2.2vh, 23px) * var(--fscale)); color: #F8FAFC; font-weight: 800; margin-top: 8px; flex-shrink: 0; line-height: 1.32;
   }
   .warn-strip {
-    background: rgba(159,18,57,0.38); border: 1.5px solid #FB7185; padding: 5px 14px; border-radius: 8px;
-    font-size: clamp(12.5px, 1.68vh, 17px); color: #FFE4E6; font-weight: 800; text-align: center; flex-shrink: 0;
+    background: rgba(159, 18, 57, 0.56); border: 2px solid #FB7185; padding: 7px 16px; border-radius: 10px;
+    font-size: calc(clamp(19px, 2.5vh, 26px) * var(--fscale)); color: #FFF1F2; font-weight: 900; text-align: center; flex-shrink: 0; line-height: 1.25;
   }
   /* 8秒门闩与停笔换红笔防抄锁屏面板 */
   .gate-panel {
@@ -630,7 +588,7 @@ const CLASS_SCHEDULES = {
     2: [{ time: "08:55", week: "all" }],
     3: [{ time: "16:15", week: "all" }, { time: "19:35", week: "all" }],
     4: [{ time: "12:30", week: "odd" }, { time: "13:25", week: "all" }],
-    5: [{ time: "07:00", week: "even" }, { time: "15:20", week: "all" }],
+    5: [{ time: "07:10", week: "even" }, { time: "15:20", week: "all" }],
     7: [{ time: "17:50", week: "all" }]
   },
   "11班": {
@@ -638,7 +596,7 @@ const CLASS_SCHEDULES = {
     2: [{ time: "11:05", week: "all" }],
     3: [{ time: "08:55", week: "all" }, { time: "17:50", week: "all" }],
     4: [{ time: "12:30", week: "even" }, { time: "16:15", week: "all" }],
-    5: [{ time: "07:00", week: "odd" }, { time: "08:00", week: "all" }],
+    5: [{ time: "07:10", week: "odd" }, { time: "08:00", week: "all" }],
     7: [{ time: "19:35", week: "all" }]
   }
 };
@@ -970,11 +928,13 @@ function playSound(kind) {
 }
 
 function fmtHL(str) {
-  return escapeHtml(str || '').replace(/「([^」]+)」/g, (_, inner) => `<span class="hl${inner.length <= 9 ? ' nw' : ''}">${inner}</span>`);
+  return escapeHtml(str || '').replace(/「([^」]+)」/g, (_, inner) => `<span class="hl${inner.length <= 6 ? ' nw' : ''}">${inner}</span>`);
 }
-function fmtCode(str) { return escapeHtml(str || '').replace(/「([^」]+)」/g, '<span class="q-code">$1</span>'); }
+function fmtCode(str) {
+  return escapeHtml(str || '').replace(/「([^」]+)」/g, (_, inner) => `<span class="q-code${inner.length <= 5 ? ' nw' : ''}">${inner}</span>`);
+}
 function fmtAnsHL(str) {
-  return escapeHtml(str || '').replace(/「([^」]+)」/g, (_, inner) => `<span class="hl-ans${inner.length <= 9 ? ' nw' : ''}">${inner}</span>`);
+  return escapeHtml(str || '').replace(/「([^」]+)」/g, (_, inner) => `<span class="hl-ans${inner.length <= 6 ? ' nw' : ''}">${inner}</span>`);
 }
 
 function normalizePrepUI(raw, ui) {
@@ -997,14 +957,7 @@ function normalizePrepUI(raw, ui) {
 function renderPrepBlocks(raw, hasMap, ui) {
   const data = normalizePrepUI(raw, ui);
   const blocks = data.blocks || [];
-  const layout = (data.layout === 'compact2' && hasMap) ? 'compact2' : 'stack';
-  const totalLines = blocks.reduce((acc, b) => acc + (b.lines ? b.lines.length : 0) + (b.note ? 1 : 0), 0);
-  const totalChars = blocks.reduce((acc, b) => acc + (b.title || '').length + (b.note || '').length + (b.lines || []).join('').length, 0);
-  let density = 'density-normal';
-  if (layout === 'compact2') density = 'density-normal';
-  else if (blocks.length >= 5 || totalLines >= 10 || totalChars > 225) density = 'density-compact';
-  else if (blocks.length <= 2 && totalLines <= 6 && totalChars < 155) density = 'density-airy';
-
+  const preferCompact2 = (data.layout === 'compact2' && hasMap && blocks.length >= 4);
   const clsExtra = hasMap ? '' : 'no-map';
   const leadHtml = (data.lead || data.lead_note)
     ? `<div class="pt-lead-bar">${data.lead ? `<span class="pt-lead">📌 ${escapeHtml(data.lead)}</span>` : ''}${data.lead_note ? `<span class="pt-lead-note">${escapeHtml(data.lead_note)}</span>` : ''}</div>`
@@ -1017,7 +970,7 @@ function renderPrepBlocks(raw, hasMap, ui) {
       ${b.note ? `<div class="pt-note">${fmtHL(b.note)}</div>` : ''}
     </div>`;
   }).join('');
-  return `<div class="pt-wrap ${density} ${clsExtra}">${leadHtml}<div class="pt-list ${layout === 'compact2' ? 'layout-compact2' : ''}">${cardsHtml}</div></div>`;
+  return `<div class="pt-wrap ${clsExtra}" data-autofit="prep">${leadHtml}<div class="pt-list ${preferCompact2 ? 'layout-compact2' : ''}" ${preferCompact2 ? 'data-prefer-compact2="1"' : ''}>${cardsHtml}</div></div>`;
 }
 
 function normalizeQuizUI(raw, ui) {
@@ -1042,11 +995,6 @@ function isShortQuizTask(raw, ui) {
 function renderQuizLines(raw, hasMap, theme, ui) {
   const data = normalizeQuizUI(raw, ui);
   const tasks = data.tasks || [];
-  const totalChars = tasks.reduce((acc, t) => acc + (t.title || '').length + (t.body || '').length, 0);
-  let density = 'density-normal';
-  if (tasks.length >= 4 || totalChars > 125) density = 'density-compact';
-  else if (tasks.length <= 2 && totalChars <= 72) density = 'density-airy';
-
   const clsExtra = hasMap ? '' : 'no-map';
   const themeCls = theme === 'old' ? 'theme-old' : 'theme-new';
   const ctxHtml = data.context ? `<div class="q-ctx ${themeCls}"><span>👀</span><span>${fmtCode(data.context)}</span></div>` : '';
@@ -1058,7 +1006,7 @@ function renderQuizLines(raw, hasMap, theme, ui) {
         <div class="q-body">${fmtCode(t.body)}</div>
       </div>
     </div>`).join('');
-  return `<div class="quiz-box ${density} ${clsExtra}">${ctxHtml}<div class="q-list">${listHtml}</div></div>`;
+  return `<div class="quiz-box ${clsExtra}" data-autofit="quiz">${ctxHtml}<div class="q-list">${listHtml}</div></div>`;
 }
 
 function normalizeAnsUI(raw, ui) {
@@ -1080,12 +1028,6 @@ function normalizeAnsUI(raw, ui) {
 
 function renderAnsBlocks(raw, hasMap, theme, ui, isDual) {
   const cards = normalizeAnsUI(raw, ui);
-  const totalLines = cards.reduce((acc, c) => acc + (c.lines ? c.lines.length : 0), 0);
-  const totalChars = cards.reduce((acc, c) => acc + (c.title || '').length + (c.lines || []).join('').length, 0);
-  let density = 'density-normal';
-  if (cards.length >= 4 || totalLines >= 8 || totalChars > 180) density = 'density-compact';
-  else if (cards.length <= 2 && totalLines <= 4 && totalChars <= 95) density = 'density-airy';
-
   const clsExtra = isDual ? 'dual-compact' : (hasMap ? '' : 'no-map');
   const themeCls = theme === 'old' ? 'theme-old' : 'theme-new';
   const html = cards.map(c => `
@@ -1093,8 +1035,82 @@ function renderAnsBlocks(raw, hasMap, theme, ui, isDual) {
       ${c.title ? `<div class="ans-hd">${escapeHtml(c.title)}</div>` : ''}
       <div class="ans-lines">${(c.lines || []).filter(Boolean).map(ln => `<div class="ans-line">${fmtAnsHL(ln)}</div>`).join('')}</div>
     </div>`).join('');
-  return `<div class="ans-wrap ${density} ${clsExtra}">${html}</div>`;
+  return `<div class="ans-wrap ${clsExtra}" data-autofit="${isDual ? 'ans-dual' : 'ans'}">${html}</div>`;
 }
+
+/* ==================== 自适应大屏字号引擎：按本页字数与容器剩余空间二分撑满 ==================== */
+function measureBestFitSize(el, minFs, maxFs) {
+  const fits = (fs) => {
+    el.style.setProperty('--fit-fs', fs.toFixed(1) + 'px');
+    return (el.scrollHeight <= el.clientHeight + 2) && (el.scrollWidth <= el.clientWidth + 2);
+  };
+  if (fits(maxFs)) return maxFs;
+  if (!fits(minFs)) return minFs;
+  let lo = minFs, hi = maxFs, best = minFs;
+  for (let i = 0; i < 10; i++) {
+    const mid = (lo + hi) / 2;
+    if (fits(mid)) {
+      best = mid;
+      lo = mid;
+    } else {
+      hi = mid;
+    }
+    if (hi - lo < 0.5) break;
+  }
+  return Math.max(minFs, Math.round((best - 0.6) * 2) / 2);
+}
+
+function autoFitStageText() {
+  const nodes = document.querySelectorAll('[data-autofit]');
+  if (!nodes.length) return;
+  const vh = window.innerHeight || 1080;
+  // 始终在 100% 基准下求该页不溢出的最优基础字号，算完后恢复用户的 A+/A- 倍率
+  document.documentElement.style.setProperty('--fscale', '1.00');
+  nodes.forEach(el => {
+    if (el.clientHeight < 40 || el.clientWidth < 80) return;
+    const kind = el.getAttribute('data-autofit');
+    const isNoMap = el.classList.contains('no-map');
+    let minFs = 16, maxFs = 54;
+    if (kind === 'prep') {
+      minFs = isNoMap ? 18 : 15;
+      maxFs = isNoMap ? Math.min(62, Math.round(vh * 0.068)) : Math.min(54, Math.round(vh * 0.062));
+    } else if (kind === 'quiz') {
+      minFs = isNoMap ? 20 : 17;
+      maxFs = isNoMap ? Math.min(68, Math.round(vh * 0.076)) : Math.min(60, Math.round(vh * 0.068));
+    } else if (kind === 'ans') {
+      minFs = isNoMap ? 18 : 15;
+      maxFs = isNoMap ? Math.min(62, Math.round(vh * 0.068)) : Math.min(54, Math.round(vh * 0.062));
+    } else if (kind === 'ans-dual') {
+      minFs = 13.5;
+      maxFs = Math.min(34, Math.round(vh * 0.036));
+    }
+
+    const compactList = el.querySelector('.pt-list[data-prefer-compact2="1"]');
+    if (compactList) {
+      compactList.classList.add('layout-compact2');
+      const fs2 = measureBestFitSize(el, minFs, maxFs);
+      compactList.classList.remove('layout-compact2');
+      const fs1 = measureBestFitSize(el, minFs, maxFs);
+      if (fs2 >= fs1) {
+        compactList.classList.add('layout-compact2');
+        el.style.setProperty('--fit-fs', fs2.toFixed(1) + 'px');
+      } else {
+        el.style.setProperty('--fit-fs', fs1.toFixed(1) + 'px');
+      }
+      return;
+    }
+
+    const bestFs = measureBestFitSize(el, minFs, maxFs);
+    el.style.setProperty('--fit-fs', bestFs.toFixed(1) + 'px');
+  });
+  document.documentElement.style.setProperty('--fscale', fontScale.toFixed(2));
+}
+
+let _fitResizeTimer = null;
+window.addEventListener('resize', () => {
+  clearTimeout(_fitResizeTimer);
+  _fitResizeTimer = setTimeout(() => autoFitStageText(), 80);
+});
 
 function getQuizSummaryText(raw, ui) {
   if (ui && Array.isArray(ui.tasks) && ui.tasks.length) {
@@ -1164,7 +1180,6 @@ function renderAll() {
         <div class="big-card">
           <span class="card-tag tag-new">★ 今日必背母法（${curEpTag} · ${escapeHtml(cur.module)}）</span>
           ${renderPrepBlocks(cur.prep_display, !!prepDiag, cur.prep_ui)}
-          <div class="sub-notice">🔗 ${state.epIdx === 0 ? '首期免抽旧点，记熟9支洋流名称与海岸轮廓！' : `铃响后先用 ${oldQuizSec}秒 抽查1道历史旧点，再用 ${newQuizSec}秒 全默今日新点，快翻看通关本！`}</div>
         </div>
         ${prepDiag ? `<div class="big-card" style="padding:10px 12px;">
           <span class="card-tag tag-new">🗺️ 标准空间轮廓 / 剖面母图（点击图片可全屏放大）</span>
@@ -1186,7 +1201,7 @@ function renderAll() {
           <button class="act-btn btn-primary" onclick="startQuizFlow()">⚡ 立即开始默写</button>
         </div>
       </div>`;
-    bot.innerHTML = `<div style="color:var(--muted);font-size:14px;font-weight:700;">🛡️ 防拖堂/防无监考翻书安全门闩已激活（老师在过道巡视无需上台，读秒归零自动开考）</div><div></div>`;
+    bot.innerHTML = `<div style="color:#BAE6FD;font-size:clamp(16px,2.1vh,21px);font-weight:800;">🛡️ 读秒归零自动开考，无需上台操作</div><div></div>`;
   } else if ((state.stage === 'quiz_old' || (state.stage === 'quiz_new' && state.peekOld)) && oldIt && oldVar) {
     const isPeek = state.stage === 'quiz_new';
     const oldGridCls = quizDiagOld ? (isShortQuizTask(oldVar.prompt, oldVar.prompt_ui) ? 'grid-focus-map-short' : 'grid-focus-map') : 'grid-single';
@@ -1210,7 +1225,6 @@ function renderAll() {
             </div>
           </div>
           ${renderQuizLines(oldVar.prompt, !!quizDiagOld, 'old', oldVar.prompt_ui)}
-          <div class="sub-notice" style="border-left-color:#38BDF8;">🎯 仅需作答本题标出的核心空，${isPeek ? '补写完请切回第2题！' : '时间到自动切换第2题（今日新点）！'}</div>
         </div>
         ${quizDiagOld ? `<div class="big-card" style="padding:10px 12px;">${quizDiagOld}</div>` : ''}
       </div>`;
@@ -1250,7 +1264,7 @@ function renderAll() {
       <div style="display:flex;gap:10px;">
         <button class="act-btn btn-sec" onclick="addSec(60)">+1分钟</button>
         <button class="act-btn btn-sec" onclick="togglePause()">${state.paused ? '▶ 继续' : '⏸ 暂停'}</button>
-        <button class="act-btn btn-warn" onclick="enterAns(oldIt ? 'old' : 'new')">✅ 结束默写 · 亮出标准答案</button>
+        <button class="act-btn btn-warn" onclick="enterAns(state.epIdx > 0 ? 'old' : 'new')">✅ 结束默写 · 亮出标准答案</button>
       </div>`;
   } else if (state.stage === 'lock_pen') {
     root.innerHTML = `
@@ -1264,7 +1278,7 @@ function renderAll() {
           <button class="act-btn btn-primary" onclick="enterAns(state.epIdx > 0 ? 'old' : 'new')">✅ 全员已举红笔 · 立即亮标答</button>
         </div>
       </div>`;
-    bot.innerHTML = `<div style="color:#FDA4AF;font-size:14.5px;font-weight:800;">🔒 防秒抄保护屏：先收黑笔再亮答案，老师可在台下扫视全班换笔情况</div><div></div>`;
+    bot.innerHTML = `<div style="color:#FDA4AF;font-size:clamp(16px,2.1vh,21px);font-weight:800;">🔒 先收黑笔再亮答案，全员举红笔</div><div></div>`;
   } else {
     const vMode = ((!oldIt || !oldVar) && (state.ansView === 'old' || state.ansView === 'dual')) ? 'new' : state.ansView;
     root.innerHTML = `
@@ -1305,7 +1319,7 @@ function renderAll() {
             ${renderAnsBlocks(cur.standard_answer, !!ansDiagNew, 'new', cur.ans_ui, !!ansDiagNew)}
           </div>
         </div>`}
-      <div class="warn-strip">⚠️ 请拿红笔逐字逐图订正！凡未全对的同学，今日课后主动带通关本找地理老师背诵销账！</div>`;
+      <div class="warn-strip">⚠️ 红笔逐字逐图订正！未全对者课后带通关本找地理老师背诵销账！</div>`;
     bot.innerHTML = `
       <button class="act-btn btn-sec" onclick="enterQuizNew()">↩ 返回默写题面</button>
       <div style="display:flex;gap:10px;">
@@ -1314,6 +1328,8 @@ function renderAll() {
         <button class="act-btn btn-primary" onclick="finishAndAdvance()">🎉 完成本节订正 · 自动推进至下一期</button>
       </div>`;
   }
+  autoFitStageText();
+  requestAnimationFrame(() => autoFitStageText());
 }
 function confirmBindClass(c) {
   isClsLocked = true;
@@ -1398,21 +1414,33 @@ function addSec(s) {
 function togglePause() { state.paused = !state.paused; renderAll(); }
 
 async function closeBoardWindow() {
-  await callLocalDaemon('/action', { type: 'close_lock' });
+  const res = await callLocalDaemon('/action', { type: 'close_lock', closeBrowser: true });
   window.close();
-  setTimeout(() => { document.body.innerHTML = '<div style="margin:auto;text-align:center;"><h1 style="color:#FACC15;">已结束本节展示（本节不再自动重弹），请按 Alt+F4 或右上角 × 关闭窗口</h1></div>'; }, 300);
+  if (res && res.willClose) {
+    document.body.innerHTML = '<div style="margin:auto;text-align:center;padding:32px;"><h1 style="font-size:30px;color:#FACC15;">✅ 已结束本节展示，正在退出全屏…</h1></div>';
+  } else {
+    setTimeout(() => { document.body.innerHTML = '<div style="margin:auto;text-align:center;padding:32px;"><h1 style="font-size:28px;color:#FACC15;margin-bottom:16px;">✅ 已结束本节展示（本节不再自动重弹）</h1><button class="act-btn btn-primary" style="margin:0 auto;" onclick="location.reload()">↩ 重新打开大屏</button></div>'; }, 300);
+  }
 }
 async function snoozeBoard() {
-  await callLocalDaemon('/action', { type: 'snooze', sec: 120 });
+  const res = await callLocalDaemon('/action', { type: 'snooze', sec: 120, closeBrowser: true });
   window.close();
-  document.body.innerHTML = `<div style="margin:auto;text-align:center;padding:32px;"><h1 style="font-size:28px;color:var(--gold);margin-bottom:14px;">👌 已退回桌面让位（2分钟后自动恢复）</h1><button class="act-btn btn-primary" style="margin:0 auto;" onclick="location.reload()">▶ 立即恢复地理课前准备屏</button></div>`;
+  if (res && res.willClose) {
+    document.body.innerHTML = '<div style="margin:auto;text-align:center;padding:32px;"><h1 style="font-size:30px;color:#FACC15;">👌 正在退回桌面让位（2分钟后检查是否恢复）…</h1></div>';
+  } else {
+    document.body.innerHTML = `<div style="margin:auto;text-align:center;padding:32px;"><h1 style="font-size:28px;color:var(--gold);margin-bottom:14px;">👌 已延后2分钟（未连本机值守进程，请手动切换窗口）</h1><button class="act-btn btn-primary" style="margin:0 auto;" onclick="location.reload()">▶ 立即恢复地理课前准备屏</button></div>`;
+  }
 }
 async function finishAndAdvance() {
   if (state.epIdx < bank.length - 1) state.epIdx++;
   progress[state.cls] = state.epIdx; localStorage.setItem('geo_prog_v5', JSON.stringify(progress));
   await callLocalDaemon('/action', { type: 'sync_ep', clsCode: state.cls.replace('班', ''), ep: state.epIdx + 1 });
-  await callLocalDaemon('/action', { type: 'close_lock' });
+  const res = await callLocalDaemon('/action', { type: 'close_lock', closeBrowser: true });
   state.stage = 'prep'; state.oldIdx = null; resolvePrepTargetBell();
+  if (res && res.willClose) {
+    document.body.innerHTML = '<div style="margin:auto;text-align:center;padding:32px;"><h1 style="font-size:30px;color:#6EE7B7;">🎉 已完成本节订正并推进至下一期，正在退出全屏…</h1></div>';
+    return;
+  }
   if (window.opener || window.history.length <= 1) { window.close(); }
   renderAll();
 }

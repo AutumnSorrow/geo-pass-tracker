@@ -1,15 +1,17 @@
 {
-  "updated_at": 0,
-  "classes": {
-    "10": {
-      "cmd_ts": 0,
-      "pause_until_ms": 0,
-      "pause_label": ""
-    },
-    "11": {
-      "cmd_ts": 0,
-      "pause_until_ms": 0,
-      "pause_label": ""
-    }
-  }
+    "updated_at":  1795670227600,
+    "classes":  {
+                    "10":  {
+                               "cmd_ts":  1795670227600,
+                               "pause_until_ms":  1795708740000,
+                               "pause_label":  "11-26 23:59"
+                           },
+                    "11":  {
+                               "cmd_ts":  0,
+                               "pause_until_ms":  0,
+                               "pause_label":  ""
+                           }
+                },
+    "sig_ver":  1,
+    "sig":  "423471f479beecbe175f2b609c43ba5add7d08086e22faefafaacf94d735dd5a"
 }
